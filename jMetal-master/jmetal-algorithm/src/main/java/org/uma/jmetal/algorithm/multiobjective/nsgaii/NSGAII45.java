@@ -149,10 +149,8 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
   }
 
   protected List<S> evaluatePopulation(List<S> population) {
-	  	
 	    population = evaluator.evaluate(population, problem);
 	    
-	    ///*
 	    for(int p = 0; p < population.size(); p++)
 	    {
 	    	S solucao = population.get(p);
@@ -176,35 +174,7 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	    	Objetivos.add(p, objetivo);
 	    }
 	    
-	    
-		if(!treinou && online)
-		{   
-			user userObject = new user(
-				    getName(),
-				    "treino",
-				    Solucoes,
-				    Objetivos
-				);
-			ArrayList SwarmInicio = http(urlTreino, userObject);
-			
-		}
-		else if(!online && !treinou && Solucoes.size() > ((maxEvaluations * 0.2)-10))
-		{
-			user userObject = new user(
-				    getName(),
-				    "treino",
-				    Solucoes,
-				    Objetivos
-				);
-			ArrayList SwarmInicio = http(urlTreino, userObject);
-			
-			treinou = true;
-			
-			Solucoes.clear();
-			Objetivos.clear();
-		}
-		else if ((online && treinou) || (treinou && !online)) 
-		{
+	    if (treinou) {
 			user userObject = new user(
 				    getName(),
 				    "treino",
@@ -227,14 +197,39 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 		    
 		    Solucoes.clear();
 			Objetivos.clear();
+	    }
+	    else if(online)
+		{   
+			user userObject = new user(
+				    getName(),
+				    "treino",
+				    Solucoes,
+				    Objetivos
+				);
+			ArrayList SwarmInicio = http(urlTreino, userObject);
+			
 		}
-		
-		if(online == true && !treinou) {
+		else if(!online && Solucoes.size() > ((maxEvaluations * 0.2)-10))
+		{
+			user userObject = new user(
+				    getName(),
+				    "treino",
+				    Solucoes,
+				    Objetivos
+				);
+			ArrayList SwarmInicio = http(urlTreino, userObject);
+			
+			treinou = true;
+			
 			Solucoes.clear();
 			Objetivos.clear();
 		}
 		
-    //*/
+		if(online && !treinou) {
+			Solucoes.clear();
+			Objetivos.clear();
+		}
+		
     return population;
   }
 

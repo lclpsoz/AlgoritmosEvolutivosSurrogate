@@ -181,7 +181,8 @@ def treino():
     #erro = message["erro"]  
     
     nObj = nObj.transpose()
-    
+    print  ("TREINA", "nSolution", nSolution)
+    print  ("TREINA", "nObj", nObj)
     for i in range(len(nObj)):
         classifier[i] = classifier[i].fit(nSolution, nObj[i]);
 	    
