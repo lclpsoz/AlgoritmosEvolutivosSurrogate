@@ -33,6 +33,7 @@ public class NSGAIIBuilder<S extends Solution<?>> implements AlgorithmBuilder<NS
   private SelectionOperator<List<S>, S> selectionOperator;
   private SolutionListEvaluator<S> evaluator;
   private Comparator<S> dominanceComparator ;
+  private boolean online;
 
   private NSGAIIVariant variant;
 
@@ -105,12 +106,18 @@ public class NSGAIIBuilder<S extends Solution<?>> implements AlgorithmBuilder<NS
 
     return this;
   }
+  
+  public boolean setOnline(boolean online) {
+	    this.online = online;
+
+	    return this != null;
+	  }
 
   public NSGAII<S> build() {
     NSGAII<S> algorithm = null ;
     if (variant.equals(NSGAIIVariant.NSGAII)) {
       algorithm = new NSGAII<S>(problem, maxEvaluations, populationSize, crossoverOperator,
-          mutationOperator, selectionOperator, dominanceComparator, evaluator);
+          mutationOperator, selectionOperator, dominanceComparator, evaluator, online);
     } else if (variant.equals(NSGAIIVariant.SteadyStateNSGAII)) {
       algorithm = new SteadyStateNSGAII<S>(problem, maxEvaluations, populationSize, crossoverOperator,
           mutationOperator, selectionOperator, dominanceComparator, evaluator);

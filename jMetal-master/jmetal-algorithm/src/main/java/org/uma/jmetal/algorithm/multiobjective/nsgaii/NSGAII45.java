@@ -67,15 +67,17 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
   private String urlInicializa = "http://127.0.0.1:5000/inicializa";
   private String urlClassificador = "http://127.0.0.1:5000/classificador";
   private String urlBase = "http://127.0.0.1:5000/guarda";
+  ArrayList Solucoes = new ArrayList();	
+  ArrayList Objetivos = new ArrayList();
   private Boolean treinou = false;
-  
+  private Boolean online = false;
 
   /**
    * Constructor
    */
   public NSGAII45(Problem<S> problem, int maxEvaluations, int populationSize,
                   CrossoverOperator<S> crossoverOperator, MutationOperator<S> mutationOperator,
-                  SelectionOperator<List<S>, S> selectionOperator, SolutionListEvaluator<S> evaluator) {
+                  SelectionOperator<List<S>, S> selectionOperator, SolutionListEvaluator<S> evaluator, boolean online) {
     super() ;
     this.problem = problem;
     this.maxEvaluations = maxEvaluations;
@@ -86,6 +88,7 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
     this.selectionOperator = selectionOperator;
 
     this.evaluator = evaluator;
+    this.online = online;
   }
 
   /**
@@ -126,7 +129,7 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 
       evaluations += populationSize ;
       
-      if(evaluations >  (maxEvaluations * 0.2))
+      if(evaluations >  (maxEvaluations * 0.2) && online)
      	  treinou = true;
       
     }
@@ -150,9 +153,6 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	    population = evaluator.evaluate(population, problem);
 	    
 	    ///*
-	    ArrayList Solucoes = new ArrayList<>(population.size());	
-	    ArrayList Objetivos = new ArrayList<>(population.size());
-	    
 	    for(int p = 0; p < population.size(); p++)
 	    {
 	    	S solucao = population.get(p);
@@ -176,20 +176,41 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	    	Objetivos.add(p, objetivo);
 	    }
 	    
-	    user userObject = new user(
-			    getName(),
-			    "treino",
-			    Solucoes,
-			    Objetivos
-			);
-	  
 	    
-		if(treinou == false)
+		if(!treinou && online)
 		{   
+			user userObject = new user(
+				    getName(),
+				    "treino",
+				    Solucoes,
+				    Objetivos
+				);
 			ArrayList SwarmInicio = http(urlTreino, userObject);
+			
 		}
-		else
+		else if(!online && !treinou && Solucoes.size() > ((maxEvaluations * 0.2)-10))
 		{
+			user userObject = new user(
+				    getName(),
+				    "treino",
+				    Solucoes,
+				    Objetivos
+				);
+			ArrayList SwarmInicio = http(urlTreino, userObject);
+			
+			treinou = true;
+			
+			Solucoes.clear();
+			Objetivos.clear();
+		}
+		else if ((online && treinou) || (treinou && !online)) 
+		{
+			user userObject = new user(
+				    getName(),
+				    "treino",
+				    Solucoes,
+				    Objetivos
+				);
 			//altera a populacao
 			ArrayList SwarmInicio = http(urlClassifica, userObject);
 		    
@@ -203,8 +224,16 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 		    	}
 		    	population.set(p, solucao);
 		    }
-		   
+		    
+		    Solucoes.clear();
+			Objetivos.clear();
 		}
+		
+		if(online == true && !treinou) {
+			Solucoes.clear();
+			Objetivos.clear();
+		}
+		
     //*/
     return population;
   }
@@ -322,11 +351,5 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	      }
 	      return userA.getRetorno();
 	  }
-
-@Override
-public List<DoubleSolution> getResultado() {
-	// TODO Auto-generated method stub
-	return null;
-}
   
 }
