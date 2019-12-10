@@ -55,6 +55,9 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
    */
   public static void main(String[] args) throws JMetalException, IOException {
     
+	  long tNow = System.currentTimeMillis();
+	  String tagProblem = "DTLZ";
+	  
 	for(int p = 1; p <= 7; p++)
 	{
 		Problem<DoubleSolution> problem;
@@ -96,8 +99,10 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		      problemName = args[0] ;
 		      referenceParetoFront = args[1] ;
 		    } else {
-		      //problemName = "org.uma.jmetal.problem.multiobjective.dtlz."+ nameProblem;
-		      problemName = "org.uma.jmetal.problem.multiobjective.wfg."+ nameProblem;
+		    	if (nameProblem.startsWith("DTLZ"))
+		    		problemName = "org.uma.jmetal.problem.multiobjective.dtlz."+ nameProblem;
+		    	else
+		    		problemName = "org.uma.jmetal.problem.multiobjective.wfg."+ nameProblem;
 		      referenceParetoFront = "";
 		    }
 		
@@ -153,11 +158,11 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		    
 		    
 		    
-		    new SolutionListOutput(population)
+		    /*new SolutionListOutput(population)
 	        .setSeparator("\t")
 	        .setVarFileOutputContext(new DefaultFileOutputContext(surrogate +"VAR"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
 	        .setFunFileOutputContext(new DefaultFileOutputContext(surrogate +"FUN"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
-	        .print();
+	        .print();*/
 		
 		    //JMetalLogger.logger.info("Total execution time: " + computingTime + "ms");
 		
@@ -168,7 +173,7 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		      double IGD = indice.evaluate(population);
 		      igds.add(IGD);
 		      String now = "DTLZ" + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
-		      File file = new File("out.txt");
+		      File file = new File("out_IGD_" + tagProblem + "_" + String.valueOf (tNow) + ".txt");
 		      FileWriter fr = new FileWriter(file, true);
 		      fr.write(now);
 		      fr.close();
