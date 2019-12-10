@@ -1,0 +1,6 @@
+[submodule "tx2ex"]
+	path = tx2ex
+	url = https://github.com/000haitham000/tx2ex.git
+[submodule "commons-math"]
+	path = commons-math
+	url = https://github.com/apache/commons-math.git
