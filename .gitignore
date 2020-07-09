@@ -2,3 +2,7 @@
 *.pf
 *.dat
 *.txt
+*.pyc
+*.jar
+/.metadata/
+/.metadata/

@@ -56,9 +56,12 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
   public static void main(String[] args) throws JMetalException, IOException {
     
 	  long tNow = System.currentTimeMillis();
-	  String tagProblem = "DTLZ";
+	  String tagProblem = "WFG";
+	  int amntOfVersions = 7;
+	  if(tagProblem == "WFG")
+		  amntOfVersions = 9;
 	  
-	for(int p = 1; p <= 7; p++)
+	for(int p = 1; p <= amntOfVersions; p++)
 	{
 		Problem<DoubleSolution> problem;
 	    Algorithm<List<DoubleSolution>> algorithm;
@@ -69,28 +72,26 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 	    InvertedGenerationalDistance indice;
 	    
 	    int execucao = 0;
-		int indiceClassificador = 3;
+		int indiceClassificador = 2;
 		String classifier = null;
 		String metodo = "Batch";
 		classifier = classificador(indiceClassificador);
 		ArrayList igds = new ArrayList<>();
-		int object = -1;
+		int object = 3;
 		String algoritmo = null; 
 		
-		String nameProblem = null;
-		
-		nameProblem = getNomeProblemDTLZ(p);
-		//nameProblem = getNomeProblem(p);
+		String nameProblem = tagProblem + Integer.toString(p);
 		
 		int maxEval = 10000;
 		int populationSize = 250;
 		String surrogate = "Surrogate_"+classifier+"_"+metodo+"_";
 		boolean online = false;
+		int numExecution = 20;
 		
 		if(metodo.equals("Online"))
 			online = true;
 		
-		for(int i = 0; i < 20; i++)
+		for(int i = 0; i < numExecution; i++)
 		{
 		    String problemName ;
 		    if (args.length == 1) {
@@ -109,11 +110,9 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		    //problem = ProblemUtils.<DoubleSolution> loadProblem(problemName);
 		    //problem = problem.createSolution();
 		    //problem = getProblem(nameProblem, 10);
-		    problem = getProblemDTLZ(nameProblem, 3);
+		    problem = getProblem(nameProblem, object);
 		    
 		    //problem = new DTLZ7(19, 10);
-		    
-		    object = problem.getNumberOfObjectives();
 		    
 		    referenceParetoFront = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/"+nameProblem+"."+Integer.toString(object)+"D.pf";   
 		    //referenceParetoFront = "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf";   
@@ -172,8 +171,12 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		      indice = new InvertedGenerationalDistance(referenceParetoFront,2.0);
 		      double IGD = indice.evaluate(population);
 		      igds.add(IGD);
-		      String now = "DTLZ" + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
-		      File file = new File("out_IGD_" + tagProblem + "_" + String.valueOf (tNow) + ".txt");
+		      String now = tagProblem + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
+		      File file = new File("out_IGD_" + tagProblem + "_" + surrogate + algoritmo + "_" +
+		    		  			"Obj-" + Integer.toString(object) + "_" +
+		    		  			"EvalPopulation-" + Integer.toString(maxEval) + "_" +
+		    		  			"PopulationSize-" + Integer.toString(populationSize) + "_" +
+		    		  			"timeStamp-" + String.valueOf(tNow) + ".txt");
 		      FileWriter fr = new FileWriter(file, true);
 		      fr.write(now);
 		      fr.close();
@@ -181,7 +184,9 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		    }
 		}
 		
-		String ProblemNAme = "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+//		Original problemNAme:
+//		String ProblemNAme = "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+		String ProblemNAme = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
 		
 		user userObject = new user(
 				ProblemNAme,
@@ -200,160 +205,83 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
     
   }
   
-  public static Problem<DoubleSolution> getProblemDTLZ(String prob, int nObj)
-  {
-	  int k = -1;
-	  if(nObj == 3)
-		  k = 12;
-	  else if(nObj == 10)
-		  k = 19;
-	  Problem<DoubleSolution> nomeP = null;
-	  switch(prob)
-	  {
-	  case "DTLZ1":
-		  nomeP = new DTLZ1(k,nObj);
-		  break;
-	  case "DTLZ2":
-		  nomeP = new DTLZ2(k,nObj);
-		  break;
-	  case "DTLZ3":
-		  nomeP = new DTLZ3(k,nObj);
-		  break;
-	  case "DTLZ4":
-		  nomeP = new DTLZ4(k,nObj);
-		  break;
-	  case "DTLZ5":
-		  nomeP = new DTLZ5(k,nObj);
-		  break;
-	  case "DTLZ6":
-		  nomeP = new DTLZ6(k,nObj);
-		  break;
-	  case "DTLZ7":
-		  nomeP = new DTLZ7(k,nObj);
-		  break;
-	  default:
-		  nomeP = null;
-		  break;
-	  }
-	  return nomeP;
-  }
-  
   public static Problem<DoubleSolution> getProblem(String prob, int nObj)
   {
 	  int k = -1;
-	  if(nObj == 3)
-		  k = 4;
-	  else if(nObj == 10)
-		  k = 9;
-	  Problem<DoubleSolution> nomeP = null;
-	  switch(prob)
-	  {
-	  case "WFG1":
-		  nomeP = new WFG1(k,10,nObj);
-		  break;
-	  case "WFG2":
-		  nomeP = new WFG2(k,10,nObj);
-		  break;
-	  case "WFG3":
-		  nomeP = new WFG3(k,10,nObj);
-		  break;
-	  case "WFG4":
-		  nomeP = new WFG4(k,10,nObj);
-		  break;
-	  case "WFG5":
-		  nomeP = new WFG5(k,10,nObj);
-		  break;
-	  case "WFG6":
-		  nomeP = new WFG6(k,10,nObj);
-		  break;
-	  case "WFG7":
-		  nomeP = new WFG7(k,10,nObj);
-		  break;
-	  case "WFG8":
-		  nomeP = new WFG8(k,10,nObj);
-		  break;
-	  case "WFG9":
-		  nomeP = new WFG9(k,10,nObj);
-		  break;
-	  default:
-		  nomeP = null;
-		  break;
+	  Problem<DoubleSolution> problem = null;
+	  if(prob.startsWith("DTLZ")) {
+		  if(nObj == 3)
+			  k = 12;
+		  else if(nObj == 10)
+			  k = 19;
+		  switch(prob)
+		  {
+		  case "DTLZ1":
+			  problem = new DTLZ1(k,nObj);
+			  break;
+		  case "DTLZ2":
+			  problem = new DTLZ2(k,nObj);
+			  break;
+		  case "DTLZ3":
+			  problem = new DTLZ3(k,nObj);
+			  break;
+		  case "DTLZ4":
+			  problem = new DTLZ4(k,nObj);
+			  break;
+		  case "DTLZ5":
+			  problem = new DTLZ5(k,nObj);
+			  break;
+		  case "DTLZ6":
+			  problem = new DTLZ6(k,nObj);
+			  break;
+		  case "DTLZ7":
+			  problem = new DTLZ7(k,nObj);
+			  break;
+		  default:
+			  problem = null;
+			  break;
+		  }
+		  return problem;
+	  } else {
+		  if(nObj == 3)
+			  k = 4;
+		  else if(nObj == 10)
+			  k = 9;
+		  switch(prob)
+		  {
+		  case "WFG1":
+			  problem = new WFG1(k,10,nObj);
+			  break;
+		  case "WFG2":
+			  problem = new WFG2(k,10,nObj);
+			  break;
+		  case "WFG3":
+			  problem = new WFG3(k,10,nObj);
+			  break;
+		  case "WFG4":
+			  problem = new WFG4(k,10,nObj);
+			  break;
+		  case "WFG5":
+			  problem = new WFG5(k,10,nObj);
+			  break;
+		  case "WFG6":
+			  problem = new WFG6(k,10,nObj);
+			  break;
+		  case "WFG7":
+			  problem = new WFG7(k,10,nObj);
+			  break;
+		  case "WFG8":
+			  problem = new WFG8(k,10,nObj);
+			  break;
+		  case "WFG9":
+			  problem = new WFG9(k,10,nObj);
+			  break;
+		  default:
+			  problem = null;
+			  break;
+		  }
+		  return problem;
 	  }
-	  return nomeP;
-  }
-  
-  public static String getNomeProblemDTLZ(int nome)
-  {
-	  String nomeP = null;
-	  switch(nome)
-	  {
-	  case 1:
-		  nomeP = "DTLZ1";
-		  break;
-	  case 2:
-		  nomeP = "DTLZ2";
-		  break;
-	  case 3:
-		  nomeP = "DTLZ3";
-		  break;
-	  case 4:
-		  nomeP = "DTLZ4";
-		  break;
-	  case 5:
-		  nomeP = "DTLZ5";
-		  break;
-	  case 6:
-		  nomeP = "DTLZ6";
-		  break;
-	  case 7:
-		  nomeP = "DTLZ7";
-		  break;
-	  default:
-		  nomeP = null;
-		  break;
-	  }
-	  
-	return nomeP;  
-  }
-  
-  public static String getNomeProblem(int nome)
-  {
-	  String nomeP = null;
-	  switch(nome)
-	  {
-	  case 1:
-		  nomeP = "WFG1";
-		  break;
-	  case 2:
-		  nomeP = "WFG2";
-		  break;
-	  case 3:
-		  nomeP = "WFG3";
-		  break;
-	  case 4:
-		  nomeP = "WFG4";
-		  break;
-	  case 5:
-		  nomeP = "WFG5";
-		  break;
-	  case 6:
-		  nomeP = "WFG6";
-		  break;
-	  case 7:
-		  nomeP = "WFG7";
-		  break;
-	  case 8:
-		  nomeP = "WFG8";
-		  break;
-	  case 9:
-		  nomeP = "WFG9";
-		  break;
-	  default:
-		  nomeP = null;
-		  break;
-	  }
-	  
-	return nomeP;  
   }
   
   public static String classificador(int index)
