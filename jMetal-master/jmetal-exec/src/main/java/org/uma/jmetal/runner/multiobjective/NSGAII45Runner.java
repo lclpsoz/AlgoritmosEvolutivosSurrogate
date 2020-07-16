@@ -48,246 +48,243 @@ import java.util.List;
  * @author Antonio J. Nebro <antonio@lcc.uma.es>
  */
 public class NSGAII45Runner extends AbstractAlgorithmRunner {
-  /**
-   * @param args Command line arguments.
-   * @throws JMetalException
+/**
+ * @param args Command line arguments.
+ * @throws JMetalException
  * @throws IOException 
-   */
-  public static void main(String[] args) throws JMetalException, IOException {
-    
-	  long tNow = System.currentTimeMillis();
-	  String tagProblem = "WFG";
-	  int amntOfVersions = 7;
-	  if(tagProblem == "WFG")
-		  amntOfVersions = 9;
-	  
-	for(int p = 1; p <= amntOfVersions; p++)
-	{
-		Problem<DoubleSolution> problem;
-	    Algorithm<List<DoubleSolution>> algorithm;
-	    CrossoverOperator<DoubleSolution> crossover;
-	    MutationOperator<DoubleSolution> mutation;
-	    SelectionOperator<List<DoubleSolution>, DoubleSolution> selection;
-	    String referenceParetoFront = "" ;
-	    InvertedGenerationalDistance indice;
-	    
-	    int execucao = 0;
-		int indiceClassificador = 2;
-		String classifier = null;
-		String metodo = "Batch";
-		classifier = classificador(indiceClassificador);
-		ArrayList igds = new ArrayList<>();
-		int object = 3;
-		String algoritmo = null; 
+ */
+public static void main(String[] args) throws JMetalException, IOException {
+
+	long tNow = System.currentTimeMillis();
+
+	int indsClassSurrogates[] = {0, 3, 2};
+	for(int indClassSurrogate : indsClassSurrogates) {
 		
-		String nameProblem = tagProblem + Integer.toString(p);
-		
-		int maxEval = 10000;
-		int populationSize = 250;
-		String surrogate = "Surrogate_"+classifier+"_"+metodo+"_";
-		boolean online = false;
-		int numExecution = 20;
-		
-		if(metodo.equals("Online"))
-			online = true;
-		
-		for(int i = 0; i < numExecution; i++)
-		{
-		    String problemName ;
-		    if (args.length == 1) {
-		      problemName = args[0];
-		    } else if (args.length == 2) {
-		      problemName = args[0] ;
-		      referenceParetoFront = args[1] ;
-		    } else {
-		    	if (nameProblem.startsWith("DTLZ"))
-		    		problemName = "org.uma.jmetal.problem.multiobjective.dtlz."+ nameProblem;
-		    	else
-		    		problemName = "org.uma.jmetal.problem.multiobjective.wfg."+ nameProblem;
-		      referenceParetoFront = "";
-		    }
-		
-		    //problem = ProblemUtils.<DoubleSolution> loadProblem(problemName);
-		    //problem = problem.createSolution();
-		    //problem = getProblem(nameProblem, 10);
-		    problem = getProblem(nameProblem, object);
-		    
-		    //problem = new DTLZ7(19, 10);
-		    
-		    referenceParetoFront = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/"+nameProblem+"."+Integer.toString(object)+"D.pf";   
-		    //referenceParetoFront = "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf";   
-		    if(object == 10)
-		    	populationSize = 764;
-		    else if(object == 3)
-		    	populationSize = 91;
-		    
-		    ArrayList array = new ArrayList<>(1);
-		    array.add(object);
-		    
-		    user userObject = new user(
-					classifier,
-				    classifier,
-				    new ArrayList<>(),
-				    array
-				);
-			ArrayList SwarmInicio = http("http://127.0.0.1:5000/classificador", userObject);
-			
-		    
-		    double crossoverProbability = 0.9 ;
-		    double crossoverDistributionIndex = 20.0 ;
-		    crossover = new SBXCrossover(crossoverProbability, crossoverDistributionIndex) ;
-		
-		    double mutationProbability = 1.0 / problem.getNumberOfVariables() ;
-		    double mutationDistributionIndex = 20.0 ;
-		    mutation = new PolynomialMutation(mutationProbability, mutationDistributionIndex) ;
-		
-		    selection = new BinaryTournamentSelection<DoubleSolution>(new RankingAndCrowdingDistanceComparator<DoubleSolution>());
-		
-		    
-		    algorithm = new NSGAII45<DoubleSolution>(problem, maxEval,populationSize, crossover, mutation,
-		            selection, new SequentialSolutionListEvaluator<DoubleSolution>(), online) ;
-		    
-		    algoritmo = algorithm.getName();
-		    
-		    AlgorithmRunner algorithmRunner = new AlgorithmRunner.Executor(algorithm)
-		            .execute() ;
-		
-		    List<DoubleSolution> population = algorithm.getResult() ;
-		    //long computingTime = algorithmRunner.getComputingTime() ;
-		    
-		    
-		    
-		    /*new SolutionListOutput(population)
-	        .setSeparator("\t")
-	        .setVarFileOutputContext(new DefaultFileOutputContext(surrogate +"VAR"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
-	        .setFunFileOutputContext(new DefaultFileOutputContext(surrogate +"FUN"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
-	        .print();*/
-		
-		    //JMetalLogger.logger.info("Total execution time: " + computingTime + "ms");
-		
-		    printFinalSolutionSet(population);
-		    if (!referenceParetoFront.equals("")) {
-		      //printQualityIndicators(population, referenceParetoFront) ;
-		      indice = new InvertedGenerationalDistance(referenceParetoFront,2.0);
-		      double IGD = indice.evaluate(population);
-		      igds.add(IGD);
-		      String now = tagProblem + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
-		      File file = new File("out_IGD_" + tagProblem + "_" + surrogate + algoritmo + "_" +
-		    		  			"Obj-" + Integer.toString(object) + "_" +
-		    		  			"EvalPopulation-" + Integer.toString(maxEval) + "_" +
-		    		  			"PopulationSize-" + Integer.toString(populationSize) + "_" +
-		    		  			"timeStamp-" + String.valueOf(tNow) + ".txt");
-		      FileWriter fr = new FileWriter(file, true);
-		      fr.write(now);
-		      fr.close();
-		      System.out.print(now);
-		    }
+		String tagProblems[] = {"WFG", "DTLZ"};
+		for(String tagProblem : tagProblems) {
+
+			int amntOfVersions = 7;
+			if(tagProblem == "WFG")
+				amntOfVersions = 9;
+			for(int p = 1; p <= amntOfVersions; p++) {
+				
+				String metodos[] = {"Online", "Batch"};
+				for(String metodo : metodos) {
+
+					Problem<DoubleSolution> problem;
+					Algorithm<List<DoubleSolution>> algorithm;
+					CrossoverOperator<DoubleSolution> crossover;
+					MutationOperator<DoubleSolution> mutation;
+					SelectionOperator<List<DoubleSolution>, DoubleSolution> selection;
+					String referenceParetoFront = "";
+					InvertedGenerationalDistance indice;
+					String classifierSurrogate = classificador(indClassSurrogate);
+					ArrayList igds = new ArrayList<>();
+					int object = 3;
+					String algoritmo = null; 
+					
+					String nameProblem = tagProblem + Integer.toString(p);
+					
+					int maxEval = 10000;
+					int populationSize = 250;
+					String surrogate = "Surrogate_"+classifierSurrogate+"_"+metodo+"_";
+					boolean online = false;
+					int numExecution = 20;
+					
+					if(metodo.equals("Online"))
+						online = true;
+					
+					for(int i = 0; i < numExecution; i++)
+					{
+						String problemName ;
+						if (args.length == 1) {
+						problemName = args[0];
+						} else if (args.length == 2) {
+						problemName = args[0] ;
+						referenceParetoFront = args[1] ;
+						} else {
+							if (nameProblem.startsWith("DTLZ"))
+								problemName = "org.uma.jmetal.problem.multiobjective.dtlz."+ nameProblem;
+							else
+								problemName = "org.uma.jmetal.problem.multiobjective.wfg."+ nameProblem;
+						referenceParetoFront = "";
+						}
+					
+						//problem = ProblemUtils.<DoubleSolution> loadProblem(problemName);
+						//problem = problem.createSolution();
+						problem = getProblem(nameProblem, object);
+						
+						referenceParetoFront = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/"+nameProblem+"."+Integer.toString(object)+"D.pf"; 
+						//referenceParetoFront = "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf"; 
+						if(object == 10)
+							populationSize = 764;
+						else if(object == 3)
+							populationSize = 91;
+						
+						ArrayList array = new ArrayList<>(1);
+						array.add(object);
+						
+						user userObject = new user(
+								classifierSurrogate,
+								classifierSurrogate,
+								new ArrayList<>(),
+								array
+							);
+						ArrayList SwarmInicio = http("http://127.0.0.1:5000/classificador", userObject);
+						
+						
+						double crossoverProbability = 0.9 ;
+						double crossoverDistributionIndex = 20.0 ;
+						crossover = new SBXCrossover(crossoverProbability, crossoverDistributionIndex) ;
+					
+						double mutationProbability = 1.0 / problem.getNumberOfVariables() ;
+						double mutationDistributionIndex = 20.0 ;
+						mutation = new PolynomialMutation(mutationProbability, mutationDistributionIndex) ;
+					
+						selection = new BinaryTournamentSelection<DoubleSolution>(new RankingAndCrowdingDistanceComparator<DoubleSolution>());
+					
+						
+						algorithm = new NSGAII45<DoubleSolution>(problem, maxEval,populationSize, crossover, mutation,
+								selection, new SequentialSolutionListEvaluator<DoubleSolution>(), online) ;
+						
+						algoritmo = algorithm.getName();
+						
+						AlgorithmRunner algorithmRunner = new AlgorithmRunner.Executor(algorithm)
+								.execute() ;
+					
+						List<DoubleSolution> population = algorithm.getResult() ;
+						//long computingTime = algorithmRunner.getComputingTime() ;
+						
+						
+						
+						/*new SolutionListOutput(population)
+						.setSeparator("\t")
+						.setVarFileOutputContext(new DefaultFileOutputContext(surrogate +"VAR"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
+						.setFunFileOutputContext(new DefaultFileOutputContext(surrogate +"FUN"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(object)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
+						.print();*/
+					
+						//JMetalLogger.logger.info("Total execution time: " + computingTime + "ms");
+					
+						printFinalSolutionSet(population);
+						if (!referenceParetoFront.equals("")) {
+						//printQualityIndicators(population, referenceParetoFront) ;
+						indice = new InvertedGenerationalDistance(referenceParetoFront,2.0);
+					 	 double IGD = indice.evaluate(population);
+						igds.add(IGD);
+						String now = tagProblem + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
+						File file = new File("out_IGD_" + tagProblem + "_" + surrogate + algoritmo + "_" +
+											"Obj-" + Integer.toString(object) + "_" +
+											"EvalPopulation-" + Integer.toString(maxEval) + "_" +
+											"PopulationSize-" + Integer.toString(populationSize) + "_" +
+											"timeStamp-" + String.valueOf(tNow) + ".txt");
+						FileWriter fr = new FileWriter(file, true);
+						fr.write(now);
+						fr.close();
+						System.out.print(now);
+						System.out.println("End of execution " + Integer.toString(i+1) + " of " + Integer.toString(numExecution));
+						}
+					}
+					
+			//		Original problemNAme:
+			//		String ProblemNAme = "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+					String ProblemNAme = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+					
+					user userObject = new user(
+							ProblemNAme,
+							ProblemNAme,
+							new ArrayList<>(),
+							igds
+						);
+					ArrayList SwarmInicio = http("http://127.0.0.1:5000/save", userObject);
+				}
+			}
 		}
-		
-//		Original problemNAme:
-//		String ProblemNAme = "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
-		String ProblemNAme = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
-		
-		user userObject = new user(
-				ProblemNAme,
-				ProblemNAme,
-				new ArrayList<>(),
-			    igds
-			);
-		ArrayList SwarmInicio = http("http://127.0.0.1:5000/save", userObject);
-		
 	}
-	//try(FileOutputStream f = new FileOutputStream("/home/joe/MESTRADO_LINUX/"+algoritmo+"_"+Integer.toString(object)+"_Objectivos.txt");
-	//	    ObjectOutput s = new ObjectOutputStream(f)) {
-	//	    s.writeObject(igds);
-		   
-	//	}
-    
-  }
-  
-  public static Problem<DoubleSolution> getProblem(String prob, int nObj)
-  {
-	  int k = -1;
-	  Problem<DoubleSolution> problem = null;
-	  if(prob.startsWith("DTLZ")) {
-		  if(nObj == 3)
-			  k = 12;
-		  else if(nObj == 10)
-			  k = 19;
-		  switch(prob)
-		  {
-		  case "DTLZ1":
-			  problem = new DTLZ1(k,nObj);
-			  break;
-		  case "DTLZ2":
-			  problem = new DTLZ2(k,nObj);
-			  break;
-		  case "DTLZ3":
-			  problem = new DTLZ3(k,nObj);
-			  break;
-		  case "DTLZ4":
-			  problem = new DTLZ4(k,nObj);
-			  break;
-		  case "DTLZ5":
-			  problem = new DTLZ5(k,nObj);
-			  break;
-		  case "DTLZ6":
-			  problem = new DTLZ6(k,nObj);
-			  break;
-		  case "DTLZ7":
-			  problem = new DTLZ7(k,nObj);
-			  break;
-		  default:
-			  problem = null;
-			  break;
-		  }
-		  return problem;
-	  } else {
-		  if(nObj == 3)
-			  k = 4;
-		  else if(nObj == 10)
-			  k = 9;
-		  switch(prob)
-		  {
-		  case "WFG1":
-			  problem = new WFG1(k,10,nObj);
-			  break;
-		  case "WFG2":
-			  problem = new WFG2(k,10,nObj);
-			  break;
-		  case "WFG3":
-			  problem = new WFG3(k,10,nObj);
-			  break;
-		  case "WFG4":
-			  problem = new WFG4(k,10,nObj);
-			  break;
-		  case "WFG5":
-			  problem = new WFG5(k,10,nObj);
-			  break;
-		  case "WFG6":
-			  problem = new WFG6(k,10,nObj);
-			  break;
-		  case "WFG7":
-			  problem = new WFG7(k,10,nObj);
-			  break;
-		  case "WFG8":
-			  problem = new WFG8(k,10,nObj);
-			  break;
-		  case "WFG9":
-			  problem = new WFG9(k,10,nObj);
-			  break;
-		  default:
-			  problem = null;
-			  break;
-		  }
-		  return problem;
-	  }
-  }
-  
-  public static String classificador(int index)
-  {
-	  String classificador = null;
-	  switch (index) {
+}
+
+public static Problem<DoubleSolution> getProblem(String prob, int nObj)
+{
+	int k = -1;
+	Problem<DoubleSolution> problem = null;
+	if(prob.startsWith("DTLZ")) {
+		if(nObj == 3)
+			k = 12;
+		else if(nObj == 10)
+			k = 19;
+		switch(prob)
+		{
+		case "DTLZ1":
+			problem = new DTLZ1(k,nObj);
+			break;
+		case "DTLZ2":
+			problem = new DTLZ2(k,nObj);
+			break;
+		case "DTLZ3":
+			problem = new DTLZ3(k,nObj);
+			break;
+		case "DTLZ4":
+			problem = new DTLZ4(k,nObj);
+			break;
+		case "DTLZ5":
+			problem = new DTLZ5(k,nObj);
+			break;
+		case "DTLZ6":
+			problem = new DTLZ6(k,nObj);
+			break;
+		case "DTLZ7":
+			problem = new DTLZ7(k,nObj);
+			break;
+		default:
+			problem = null;
+			break;
+		}
+		return problem;
+	} else {
+		if(nObj == 3)
+			k = 4;
+		else if(nObj == 10)
+			k = 9;
+		switch(prob)
+		{
+		case "WFG1":
+			problem = new WFG1(k,10,nObj);
+			break;
+		case "WFG2":
+			problem = new WFG2(k,10,nObj);
+			break;
+		case "WFG3":
+			problem = new WFG3(k,10,nObj);
+			break;
+		case "WFG4":
+			problem = new WFG4(k,10,nObj);
+			break;
+		case "WFG5":
+			problem = new WFG5(k,10,nObj);
+			break;
+		case "WFG6":
+			problem = new WFG6(k,10,nObj);
+			break;
+		case "WFG7":
+			problem = new WFG7(k,10,nObj);
+			break;
+		case "WFG8":
+			problem = new WFG8(k,10,nObj);
+			break;
+		case "WFG9":
+			problem = new WFG9(k,10,nObj);
+			break;
+		default:
+			problem = null;
+			break;
+		}
+		return problem;
+	}
+}
+
+public static String classificador(int index)
+{
+	String classificador = null;
+	switch (index) {
 	case 1:
 		classificador = "SVM";
 		break;
@@ -298,19 +295,19 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		classificador = "TREE";
 		break;
 	default:
-		classificador = null;
+		classificador = "NO-SURROGATE";
 		break;
 	}
-	  return classificador;
-  }
-  
-  public static ArrayList http(String url, user userObject) {
-	  	
-	  	JSONObject json = new JSONObject();
-	  	//json.put("valor", "chave");  
-	  	ObjectMapper mapper = new ObjectMapper();
-	  	String jsonInString = null;
-	  	try {
+	return classificador;
+}
+
+public static ArrayList http(String url, user userObject) {
+		
+		JSONObject json = new JSONObject();
+		//json.put("valor", "chave");
+		ObjectMapper mapper = new ObjectMapper();
+		String jsonInString = null;
+		try {
 				
 				//Convert object to JSON string
 				jsonInString = mapper.writeValueAsString(userObject);
@@ -328,28 +325,28 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-	  	
-	  	retorno userA = new retorno();
-	      try (CloseableHttpClient httpClient = HttpClientBuilder.create().build()) {
-	          HttpPost request = new HttpPost(url);
-	          StringEntity params = new StringEntity(jsonInString);
-	          request.addHeader("content-type", "application/json");
-	          request.setEntity(params);
-	          HttpResponse result = httpClient.execute(request);
-	          
-	          String json1 = EntityUtils.toString(result.getEntity(), "UTF-8");
-	          
+		
+		retorno userA = new retorno();
+		try (CloseableHttpClient httpClient = HttpClientBuilder.create().build()) {
+			HttpPost request = new HttpPost(url);
+			StringEntity params = new StringEntity(jsonInString);
+			request.addHeader("content-type", "application/json");
+			request.setEntity(params);
+			HttpResponse result = httpClient.execute(request);
+			
+			String json1 = EntityUtils.toString(result.getEntity(), "UTF-8");
+			
 
-			  userA = mapper.readValue(json1, retorno.class);
-			  
-			  
+			userA = mapper.readValue(json1, retorno.class);
+			
+			
 				
-	          //System.out.println(json1);
+			//System.out.println(json1);
 
-	      } catch (IOException ex) {
-	      	System.out.println(ex.getMessage());
-	      }
-	      return userA.getRetorno();
-	  }
-  
+		} catch (IOException ex) {
+			System.out.println(ex.getMessage());
+		}
+		return userA.getRetorno();
+	}
+
 }
