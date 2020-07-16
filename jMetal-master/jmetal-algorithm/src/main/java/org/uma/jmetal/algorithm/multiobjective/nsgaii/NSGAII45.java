@@ -30,7 +30,8 @@ import org.uma.jmetal.util.solutionattribute.impl.DominanceRanking;
 import org.uma.jmetal.algorithm.multiobjective.nsgaiii.retorno;
 import org.uma.jmetal.algorithm.multiobjective.nsgaiii.user;
 
-
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -147,8 +148,51 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
     }
     return population;
   }
+  
+  public static void appendToFile (String text, String fileName) {
+      File file = new File(fileName);
+      FileWriter fr;
+	try {
+		fr = new FileWriter(file, false);
+		fr.write(text + '\n');
+		fr.close();
+	} catch (IOException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+  }
+  
+  public static String toJsonString (ArrayList arr) {
+	  	JSONObject json = new JSONObject();
+	  	//json.put("valor", "chave");  
+	  	ObjectMapper mapper = new ObjectMapper();
+	  	String jsonInString = null;
+	  	try {
+				
+				//Convert object to JSON string
+				jsonInString = mapper.writeValueAsString(arr);
+				//System.out.println(jsonInString);
+				
+				//Convert object to JSON string and pretty print
+				jsonInString = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(arr);
+				//System.out.println(jsonInString);
+				
+				
+			} catch (JsonGenerationException e) {
+				e.printStackTrace();
+			} catch (JsonMappingException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+	  	//System.out.println(jsonInString);
+	  	
+	  	return jsonInString;
+  }
 
   protected List<S> evaluatePopulation(List<S> population) {
+	  	ArrayList ObjetivosEvaluator = new ArrayList();
+	  	ArrayList ObjetivosSurrogate = null;
 	    population = evaluator.evaluate(population, problem);
 	    
 	    for(int p = 0; p < population.size(); p++)
@@ -173,25 +217,33 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	    	Solucoes.add(p, variables);
 	    	Objetivos.add(p, objetivo);
 	    }
+	    ObjetivosEvaluator = (ArrayList) Objetivos.clone();
 	    
 	    if (treinou) {
+	    	ObjetivosSurrogate = new ArrayList();
 			user userObject = new user(
 				    getName(),
 				    "treino",
 				    Solucoes,
 				    Objetivos
 				);
+			// Salva valor esperado em out.txt
+			appendToFile(toJsonString(ObjetivosEvaluator), "out.txt");
+			
 			//altera a populacao
 			ArrayList SwarmInicio = http(urlClassifica, userObject);
 		    
 		    for(int p = 0; p < population.size(); p++)
 		    {
 		    	S solucao = population.get(p);
+		    	double[] objetivo = new double[solucao.getNumberOfObjectives()];
 		    	for(int ob = 0; ob < SwarmInicio.size(); ob++)
 		    	{
 		    		ArrayList object = (ArrayList) SwarmInicio.get(ob);
 		    		solucao.setObjective(ob, (double)object.get(p));
+		    		objetivo[ob] = (double)object.get(p);
 		    	}
+	    		ObjetivosSurrogate.add (p, objetivo);
 		    	population.set(p, solucao);
 		    }
 		    
@@ -230,6 +282,17 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 			Objetivos.clear();
 		}
 		
+		//System.out.println("ObjetivosEvaluator:");
+		// appendToFile("ObjetivosEvaluator:", "out.txt");
+		// appendToFile(toJsonString(ObjetivosEvaluator), "out.txt");
+		//System.out.println("ObjetivosSurrogate:");
+		/*appendToFile("ObjetivosSurrogate:", "out.txt");
+		if (ObjetivosSurrogate != null)
+			appendToFile(toJsonString(ObjetivosSurrogate), "out.txt");
+		else {
+			//System.out.println("NULL");
+			appendToFile("NULL", "out.txt");
+		}*/
     return population;
   }
 
