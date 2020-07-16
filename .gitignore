@@ -6,3 +6,6 @@
 *.jar
 /.metadata/
 /.metadata/
+*nbproject*
+*.log.1
+jMetal-master/jmetal-exec/bckp_data/
