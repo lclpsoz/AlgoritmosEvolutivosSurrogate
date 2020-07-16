@@ -143,18 +143,19 @@ def classificador():
     processar = message["processar"]
     nObj = np.asarray(message["objetivos"])
     
-    print(processar)
+    print("classificador:", processar)
     if processar == "SVM":
         classifierInit = SVR(kernel='rbf', C=1e3, gamma=0.1, tol=0.01)
     elif processar == "TREE":
         for i in range(nObj[0]):
-            classifierInit.append(DecisionTreeRegressor(max_depth=500,min_samples_split=2, random_state=0,criterion='mse'))
-            
+            classifierInit.append(DecisionTreeRegressor(max_depth=500,min_samples_split=2, random_state=0,criterion='mse'))    
     elif processar == "RAMDOMFOREST":
         for i in range(nObj[0]):
             classifierInit.append(RandomForestRegressor(n_estimators=200, max_depth=None,min_samples_split=2, random_state=0,criterion='mse'))  
     elif processar == "MLP":
         classifierInit = MLPRegressor(hidden_layer_sizes=(10,),max_iter=1000)
+    elif processar == "NO-SURROGATE":
+        classifierInit = None
 
     classifier = classifierInit
     
@@ -181,10 +182,13 @@ def treino():
     #erro = message["erro"]  
     
     nObj = nObj.transpose()
-    print  ("TREINA", "nSolution", nSolution)
-    print  ("TREINA", "nObj", nObj)
-    for i in range(len(nObj)):
-        classifier[i] = classifier[i].fit(nSolution, nObj[i]);
+    # print  ("TREINA", "nSolution", nSolution)
+    # print  ("TREINA", "nObj", nObj)
+    with open ("out.txt", "a") as f:
+        f.write ("TREINA\n")
+    if classifier != None:
+        for i in range(len(nObj)):
+            classifier[i] = classifier[i].fit(nSolution, nObj[i]);
 	    
     #treinou = True
     
@@ -218,6 +222,7 @@ def save():
     
     message = request.get_json(silent=True)
     nome = message["algoritmo"]
+    # print("# /SAVE # nome = " + nome)
     nSolution = np.asarray(message["solucoes"])
     nObj = np.asarray(message["objetivos"])
     #salva o erro e o classificador
@@ -257,10 +262,42 @@ def classifica():
     y_predict = list()
 
     nObj = nObj.transpose()
-    for i in range(len(nObj)):
-        y_predict.append(classifier[i].predict(nSolution))
+    if classifier != None:
+        for i in range(len(nObj)):
+            y_predict.append(classifier[i].predict(nSolution))
+            #print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
 
-    y_predict = np.asarray(y_predict);
+    # Read expected objective from file
+    with open ("/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-exec/out.txt", 'r') as f:
+        s = f.read()
+        # print ("s: ", type (s), s)
+        obj_expected = json.loads(s)
+        # print ("lst:", obj_expected)
+
+    # print ("y_predict lens:", len(y_predict), len(y_predict[0]))
+    # print ("y_predict types:", type(y_predict), type(y_predict[0]), type(y_predict[0][0]))
+    # print ("y_predict:", y_predict)
+    if classifier == None:
+        y_predict = [[] for i in range(3)]
+        for indv in obj_expected:
+            assert len(indv) == len(y_predict)
+            for idObj in range(len(indv)):
+                y_predict[idObj].append(indv[idObj])
+    else:
+        obj_predict = []
+        for i in range(len(y_predict[0])):
+            obj_predict.append ([])
+        for i in range(len(y_predict[0])):
+            for j in range(len(y_predict)):
+                obj_predict[i].append(y_predict[j][i])
+
+    # print ("obj_predict:", obj_predict)
+
+    # evalSurrogate(obj_expected, obj_predict)
+
+    #print ("score classifier",0, classifier[0].score(nSolution, obj_expected))
+
+    y_predict = np.asarray(y_predict)
 #    i = 0
 #    for valor in y_predict:
 #        real.append(nObj[i])
@@ -270,6 +307,49 @@ def classifica():
 
     return json.dumps({"retorno": y_predict.tolist()})
 
+def evalSurrogate(obj_expected, obj_predict):
+    
+    from sklearn.metrics import mean_absolute_error, mean_squared_error
+    from pprint import pprint
+    from statistics import mean
+    obj_expected = np.array([np.array(xi) for xi in obj_expected])
+    obj_predict = np.array([np.array(xi) for xi in obj_predict])
+    mae = mean_absolute_error(obj_expected, obj_predict)
+    
+    # Inicialmente, fazendo media de todos os valores avaliados.
+    mse = mean_squared_error(obj_expected, obj_predict)
+    with open ("out.txt", "a") as f:
+        f.write (str (mse) + '\n')
+    print ("mse:", mse)
+
+    """
+    print ("obj_predict:")
+    pprint (list([list (x)for x in obj_predict]))
+    print ("obj_expected:")
+    pprint (list([list (x)for x in obj_expected]))
+    print ("diff:")
+    pprint (list([list (x)for x in obj_predict - obj_expected]))
+    """
+
+    """
+    # Testing mean_square_error
+    ## 1D
+    diff0 = obj_predict[0] - obj_expected[0]
+    print ("diff0 = ", obj_predict[0] - obj_expected[0])
+    print ("diff0**2 = ", [x**2 for x in diff0])
+    print ("average of diff0**2 = ", mean ([x**2 for x in diff0]))
+    print ("sqrt of sum of diff0**2 = ", mean ([x**2 for x in diff0])**0.5)
+    print ("MSE indv 0:", mean_squared_error (obj_predict[0], obj_expected[0]))
+    # print ("MSE indv 1 obj 1:", mean_squared_error (obj_predict[0][0], obj_expected[0][0]))
+    ## 2D:
+    sumSq = 0
+    for i in range (len (obj_expected)):
+        for j in range (len (obj_expected[i])):
+            sumSq += (obj_expected[i][j] - obj_predict[i][j])**2
+    avrSq = sumSq / (len(obj_expected) * len(obj_expected[0]))
+    print ("avrSq = ", avrSq)
+    print ("MSE = ", mse)
+    """
 
 """
 ############################## INICIALIZA AS VARIAVEIS COM A FUNCAO LHS ####################################################
