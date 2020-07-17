@@ -57,7 +57,7 @@ public static void main(String[] args) throws JMetalException, IOException {
 
 	long tNow = System.currentTimeMillis();
 
-	int indsClassSurrogates[] = {0, 3, 2};
+	int indsClassSurrogates[] = {4, 0, 3, 2};
 	for(int indClassSurrogate : indsClassSurrogates) {
 		
 		String tagProblems[] = {"WFG", "DTLZ"};
@@ -119,7 +119,7 @@ public static void main(String[] args) throws JMetalException, IOException {
 						if(object == 10)
 							populationSize = 764;
 						else if(object == 3)
-							populationSize = 91;
+							populationSize = 92;
 						
 						ArrayList array = new ArrayList<>(1);
 						array.add(object);
@@ -293,6 +293,9 @@ public static String classificador(int index)
 		break;
 	case 3:
 		classificador = "TREE";
+		break;
+	case 4:
+		classificador = "LSTM";
 		break;
 	default:
 		classificador = "NO-SURROGATE";

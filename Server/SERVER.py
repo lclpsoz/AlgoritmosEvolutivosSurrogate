@@ -17,12 +17,20 @@ from sklearn.metrics import mean_squared_error
 #from sklearn.cross_validation import cross_val_score
 from sklearn.model_selection import GridSearchCV
 
+import pandas as pd
 
+from keras.layers.core import Activation, Dropout
+from keras.models import Sequential
+from keras.layers import Dense
+from keras.layers import LSTM
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
 
 import numpy as np
 #from pyDOE import lhs
 
 import json
+from time import sleep
 
 app = Flask(__name__)
 
@@ -134,30 +142,57 @@ def classificador():
     global classifier
     global txErro
     global real 
+    global classifier_name
     #global classifierInit
     
     classifierInit = list();
     message = request.get_json(silent=True)
+    print(message)
     #nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
     #nObj = np.asarray(message["objetivos"]) #passa o numero de variaveis na posicao 0
-    processar = message["processar"]
+    classifier_name = message["processar"]
     nObj = np.asarray(message["objetivos"])
     
-    print("classificador:", processar)
-    if processar == "SVM":
+    print("classificador:", classifier_name)
+    if classifier_name == "SVM":
         classifierInit = SVR(kernel='rbf', C=1e3, gamma=0.1, tol=0.01)
-    elif processar == "TREE":
+    elif classifier_name == "TREE":
         for i in range(nObj[0]):
             classifierInit.append(DecisionTreeRegressor(max_depth=500,min_samples_split=2, random_state=0,criterion='mse'))    
-    elif processar == "RAMDOMFOREST":
+    elif classifier_name == "RAMDOMFOREST":
         for i in range(nObj[0]):
             classifierInit.append(RandomForestRegressor(n_estimators=200, max_depth=None,min_samples_split=2, random_state=0,criterion='mse'))  
-    elif processar == "MLP":
+    elif classifier_name == "MLP":
         classifierInit = MLPRegressor(hidden_layer_sizes=(10,),max_iter=1000)
-    elif processar == "NO-SURROGATE":
+    elif classifier_name == "NO-SURROGATE":
         classifierInit = None
+    elif classifier_name == "LSTM":
+        dim_1 = 92
+        dim_2 = 14
+        output_labels = 92
+        for i in range(nObj[0]):
+            classifierInit.append(Sequential())
+            model = classifierInit[-1]
 
+            model.add(LSTM(100, return_sequences=False, input_shape=(dim_1, dim_2)))
+            # model.add(Dropout(0.2))
+            model.add(Dense(92))
+            # model.add(Activation('softmax'))
+            # print(model.summary())
+            model.compile(loss='mean_squared_error', optimizer='adam')
+    
     classifier = classifierInit
+    print("-------------- STARTING FIT ----------------")
+    with open("nSolution.txt", "r") as fp:
+        nSolution = np.array(json.load(fp))
+    with open("nObj.txt", "r") as fp:
+        nObj = np.array(json.load(fp)).transpose()
+    print("INPUT SHAPE =", np.array([nSolution]).shape)
+    for i in range(len(nObj)):
+        classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), epochs=1, verbose=0, shuffle=False)
+    print("-------------- END STARTING FIT ----------------")
+    # print("SLEEP 3")
+    # sleep(3)
     
     return json.dumps({"retorno": []})
 
@@ -175,6 +210,10 @@ def treino():
     
     lista = []
     message = request.get_json(silent=True)
+    # with open("nSolution.txt", "w") as fp:
+    #     json.dump(message["solucoes"], fp)
+    # with open("nObj.txt", "w") as fp:
+    #     json.dump(message["objetivos"], fp)
     nSolution = np.asarray(message["solucoes"])
     nObj = np.asarray(message["objetivos"])
     #print(f'O tamanho do treino: {len(nObj)}')
@@ -186,10 +225,20 @@ def treino():
     # print  ("TREINA", "nObj", nObj)
     with open ("out.txt", "a") as f:
         f.write ("TREINA\n")
-    if classifier != None:
+
+    # Fit for LSTM
+    if isinstance(classifier[0], Sequential):
+        # print("shape(nSolution) =", np.array(nSolution).shape)
+        # print("shape(nObj) =", np.array(nObj).shape)
         for i in range(len(nObj)):
-            classifier[i] = classifier[i].fit(nSolution, nObj[i]);
-	    
+            classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), epochs=10, verbose=0, shuffle=False)
+
+    # For for anything else
+    elif classifier != None:
+        for i in range(len(nObj)):
+            classifier[i] = classifier[i].fit(nSolution, nObj[i])
+    # print("SLEEP 3")
+    # sleep(3)
     #treinou = True
     
     #versão Batch
@@ -264,7 +313,9 @@ def classifica():
     nObj = nObj.transpose()
     if classifier != None:
         for i in range(len(nObj)):
-            y_predict.append(classifier[i].predict(nSolution))
+            # Classifier can be a keras Sequential model, in that case, could have a variable
+            # batch_size.
+            y_predict.append(classifier[i].predict(np.array([nSolution])))
             #print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
 
     # Read expected objective from file
