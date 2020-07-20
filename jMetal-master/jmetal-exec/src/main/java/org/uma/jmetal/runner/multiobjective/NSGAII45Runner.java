@@ -56,19 +56,19 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 public static void main(String[] args) throws JMetalException, IOException {
 
 	long tNow = System.currentTimeMillis();
+	
+	int numExecution = 20;
+	String metodos[] = {"Batch", "Online"};
+	String tagProblems[] = {"WFG", "DTLZ"};
 
 	int indsClassSurrogates[] = {4, 0, 3, 2};
 	for(int indClassSurrogate : indsClassSurrogates) {
-		
-		String tagProblems[] = {"WFG", "DTLZ"};
 		for(String tagProblem : tagProblems) {
 
 			int amntOfVersions = 7;
 			if(tagProblem == "WFG")
 				amntOfVersions = 9;
 			for(int p = 1; p <= amntOfVersions; p++) {
-				
-				String metodos[] = {"Online", "Batch"};
 				for(String metodo : metodos) {
 
 					Problem<DoubleSolution> problem;
@@ -89,7 +89,6 @@ public static void main(String[] args) throws JMetalException, IOException {
 					int populationSize = 250;
 					String surrogate = "Surrogate_"+classifierSurrogate+"_"+metodo+"_";
 					boolean online = false;
-					int numExecution = 20;
 					
 					if(metodo.equals("Online"))
 						online = true;

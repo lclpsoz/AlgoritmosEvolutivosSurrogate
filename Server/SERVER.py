@@ -6,6 +6,12 @@ Created on Tue Aug 14 21:24:26 2018
 @author: joel
 """
 
+import os
+import json
+
+import pandas as pd
+import numpy as np
+#from pyDOE import lhs
 from flask import Flask, request, jsonify
 
 from sklearn.externals import joblib
@@ -16,26 +22,65 @@ from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_squared_error
 #from sklearn.cross_validation import cross_val_score
 from sklearn.model_selection import GridSearchCV
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
 
-import pandas as pd
-
+import tensorflow as tf
 from keras.layers.core import Activation, Dropout
 from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error
-
-import numpy as np
-#from pyDOE import lhs
-
-import json
-from time import sleep
 
 app = Flask(__name__)
 
 #variaveis globais
 
+
+"""
+######################## Class for NeuralNetworks ########################
+"""
+class NeuralNetwork:
+    def __init__(self):
+        self.session = tf.Session()
+
+        self.graph = tf.get_default_graph()
+        # the folder in which the model and weights are stored
+        self.model_folder = os.path.join(os.path.abspath("src"), "static")
+        self.model = None
+        # for some reason in a flask app the graph/session needs to be used in the init else it hangs on other threads
+        with self.graph.as_default():
+            with self.session.as_default():
+                try:
+                    dim_1 = 92
+                    dim_2 = 14
+                    output_labels = 92
+                    self.model = Sequential()
+
+                    self.model.add(LSTM(100, return_sequences=False, input_shape=(dim_1, dim_2)))
+                    # model.add(Dropout(0.2))
+                    self.model.add(Dense(units=output_labels))
+                    # model.add(Activation('softmax'))
+                    # print(model.summary())
+                    self.model.compile(loss='mean_squared_error', optimizer='adam')
+                    # return True
+                except Exception as e:
+                    console.log(e)
+                    # return False
+
+        # Initialize all TF variables.
+        self.session.run(tf.global_variables_initializer())
+
+    def predict(self, x):
+        with self.graph.as_default():
+            with self.session.as_default():
+                y = self.model.predict(x)
+        return y
+
+    def fit(self, x, y, epochs, verbose, shuffle):
+        # np.array([nSolution]), np.array([nObj[i]]), epochs=1, verbose=0, shuffle=False
+        with self.graph.as_default():
+            with self.session.as_default():
+                self.model.fit(x, y, epochs=epochs, verbose=verbose, shuffle=shuffle)
 
 """
 ######################## INICIALIZA OS CLASSIFICADORES ##################################################################
@@ -147,7 +192,6 @@ def classificador():
     
     classifierInit = list();
     message = request.get_json(silent=True)
-    print(message)
     #nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
     #nObj = np.asarray(message["objetivos"]) #passa o numero de variaveis na posicao 0
     classifier_name = message["processar"]
@@ -171,28 +215,18 @@ def classificador():
         dim_2 = 14
         output_labels = 92
         for i in range(nObj[0]):
-            classifierInit.append(Sequential())
-            model = classifierInit[-1]
-
-            model.add(LSTM(100, return_sequences=False, input_shape=(dim_1, dim_2)))
-            # model.add(Dropout(0.2))
-            model.add(Dense(92))
-            # model.add(Activation('softmax'))
-            # print(model.summary())
-            model.compile(loss='mean_squared_error', optimizer='adam')
+            classifierInit.append(NeuralNetwork())
     
     classifier = classifierInit
-    print("-------------- STARTING FIT ----------------")
+    # print("-------------- STARTING FIT ----------------")
     with open("nSolution.txt", "r") as fp:
         nSolution = np.array(json.load(fp))
     with open("nObj.txt", "r") as fp:
         nObj = np.array(json.load(fp)).transpose()
-    print("INPUT SHAPE =", np.array([nSolution]).shape)
+    # print("INPUT SHAPE =", np.array([nSolution]).shape)
     for i in range(len(nObj)):
-        classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), epochs=1, verbose=0, shuffle=False)
-    print("-------------- END STARTING FIT ----------------")
-    # print("SLEEP 3")
-    # sleep(3)
+        classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 1, 0, False)
+    # print("-------------- END STARTING FIT ----------------")
     
     return json.dumps({"retorno": []})
 
@@ -227,18 +261,16 @@ def treino():
         f.write ("TREINA\n")
 
     # Fit for LSTM
-    if isinstance(classifier[0], Sequential):
+    if isinstance(classifier[0], NeuralNetwork):
         # print("shape(nSolution) =", np.array(nSolution).shape)
         # print("shape(nObj) =", np.array(nObj).shape)
         for i in range(len(nObj)):
-            classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), epochs=10, verbose=0, shuffle=False)
+            classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 10, 0, False)
 
     # For for anything else
     elif classifier != None:
         for i in range(len(nObj)):
             classifier[i] = classifier[i].fit(nSolution, nObj[i])
-    # print("SLEEP 3")
-    # sleep(3)
     #treinou = True
     
     #versão Batch
