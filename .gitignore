@@ -4,6 +4,7 @@
 *.txt
 *.pyc
 *.jar
+!lib/*
 /.metadata/
 /.metadata/
 *nbproject*
