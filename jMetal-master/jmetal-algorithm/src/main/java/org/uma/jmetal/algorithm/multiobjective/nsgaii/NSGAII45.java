@@ -409,5 +409,11 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	      }
 	      return userA.getRetorno();
 	  }
+
+@Override
+public List<DoubleSolution> getResultado() {
+	// TODO Auto-generated method stub
+	return null;
+}
   
 }
