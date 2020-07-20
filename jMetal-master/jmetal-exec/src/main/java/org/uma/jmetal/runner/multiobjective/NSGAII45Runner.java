@@ -61,7 +61,7 @@ public static void main(String[] args) throws JMetalException, IOException {
 	String metodos[] = {"Batch", "Online"};
 	String tagProblems[] = {"WFG", "DTLZ"};
 
-	int indsClassSurrogates[] = {4, 0, 3, 2};
+	int indsClassSurrogates[] = {2, 4, 0, 3};
 	for(int indClassSurrogate : indsClassSurrogates) {
 		for(String tagProblem : tagProblems) {
 
@@ -113,7 +113,7 @@ public static void main(String[] args) throws JMetalException, IOException {
 						//problem = problem.createSolution();
 						problem = getProblem(nameProblem, object);
 						
-						referenceParetoFront = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/"+nameProblem+"."+Integer.toString(object)+"D.pf"; 
+						referenceParetoFront = "../jmetal-problem/src/test/resources/pareto_fronts/"+nameProblem+"."+Integer.toString(object)+"D.pf"; 
 						//referenceParetoFront = "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf"; 
 						if(object == 10)
 							populationSize = 764;
@@ -186,7 +186,7 @@ public static void main(String[] args) throws JMetalException, IOException {
 					
 			//		Original problemNAme:
 			//		String ProblemNAme = "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
-					String ProblemNAme = "/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+					String ProblemNAme = "../../EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(object)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
 					
 					user userObject = new user(
 							ProblemNAme,

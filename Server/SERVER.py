@@ -219,13 +219,13 @@ def classificador():
     
     classifier = classifierInit
     # print("-------------- STARTING FIT ----------------")
-    with open("nSolution.txt", "r") as fp:
-        nSolution = np.array(json.load(fp))
-    with open("nObj.txt", "r") as fp:
-        nObj = np.array(json.load(fp)).transpose()
-    # print("INPUT SHAPE =", np.array([nSolution]).shape)
-    for i in range(len(nObj)):
-        classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 1, 0, False)
+    # with open("nSolution.txt", "r") as fp:
+    #     nSolution = np.array(json.load(fp))
+    # with open("nObj.txt", "r") as fp:
+    #     nObj = np.array(json.load(fp)).transpose()
+    # # print("INPUT SHAPE =", np.array([nSolution]).shape)
+    # for i in range(len(nObj)):
+    #     classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 1, 0, False)
     # print("-------------- END STARTING FIT ----------------")
     
     return json.dumps({"retorno": []})
@@ -344,14 +344,18 @@ def classifica():
 
     nObj = nObj.transpose()
     if classifier != None:
-        for i in range(len(nObj)):
-            # Classifier can be a keras Sequential model, in that case, could have a variable
-            # batch_size.
-            y_predict.append(classifier[i].predict(np.array([nSolution])))
-            #print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
+        if isinstance(classifier[0], NeuralNetwork):
+            for i in range(len(nObj)):
+                # Classifier can be a keras Sequential model, in that case, could have a variable
+                # batch_size.
+                y_predict.append(classifier[i].predict(np.array([nSolution])))
+                #print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
+        else:
+            for i in range(len(nObj)):
+                y_predict.append(classifier[i].predict(nSolution))
 
     # Read expected objective from file
-    with open ("/home/lclpsoz/Dropbox/Superior/CC-UFS/ICs/3-Andre/proj/jMetal-master/jmetal-exec/out.txt", 'r') as f:
+    with open ("../jMetal-master/jmetal-exec/out.txt", 'r') as f:
         s = f.read()
         # print ("s: ", type (s), s)
         obj_expected = json.loads(s)
