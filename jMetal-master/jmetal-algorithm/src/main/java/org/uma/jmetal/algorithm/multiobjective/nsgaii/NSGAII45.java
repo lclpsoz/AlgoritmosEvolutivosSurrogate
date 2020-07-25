@@ -73,13 +73,14 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	ArrayList Objetivos = new ArrayList();
 	private Boolean treinou = false;
 	private Boolean online = false;
+	private Boolean noSurrogate = false;
 
 	/**
 	 * Constructor
 	 */
 	public NSGAII45(Problem<S> problem, int maxEvaluations, int populationSize, CrossoverOperator<S> crossoverOperator,
 			MutationOperator<S> mutationOperator, SelectionOperator<List<S>, S> selectionOperator,
-			SolutionListEvaluator<S> evaluator, boolean online) {
+			SolutionListEvaluator<S> evaluator, boolean online, boolean noSurrogate) {
 		super();
 		this.problem = problem;
 		this.maxEvaluations = maxEvaluations;
@@ -91,6 +92,8 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 
 		this.evaluator = evaluator;
 		this.online = online;
+		
+		this.noSurrogate = noSurrogate;
 	}
 
 	/**
@@ -195,7 +198,10 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 		ArrayList ObjetivosEvaluator = new ArrayList();
 		ArrayList ObjetivosSurrogate = null;
 		population = evaluator.evaluate(population, problem);
-
+		
+		if(this.noSurrogate)
+			return population;
+		
 		for (int p = 0; p < population.size(); p++) {
 			S solucao = population.get(p);
 
@@ -344,7 +350,6 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 	}
 
 	public static ArrayList http(String url, user userObject) {
-
 		JSONObject json = new JSONObject();
 		// json.put("valor", "chave");
 		ObjectMapper mapper = new ObjectMapper();
@@ -376,7 +381,6 @@ public class NSGAII45<S extends Solution<?>> implements Algorithm<List<S>> {
 			HttpResponse result = httpClient.execute(request);
 
 			String json1 = EntityUtils.toString(result.getEntity(), "UTF-8");
-
 			userA = mapper.readValue(json1, retorno.class);
 
 			// System.out.println(json1);
