@@ -5,20 +5,6 @@ from tabulate import tabulate
 from scipy.stats import wilcoxon
 import json
 
-def fix_files_structures(folder_name : str):
-    if folder_name[-1] != '/':
-        folder_name += '/'
-    for filename in os.listdir(folder_name):
-        if(os.path.isfile(folder_name + filename)):
-            with open(folder_name + filename, 'r') as fp:
-                text = fp.read()
-            if(('DTLZ' in text and not '\nDTLZ2' in text) or
-                ('WFG' in text and not '\nWFG2' in text)):
-                with open(folder_name + filename, 'w') as fp:
-                    text = text.replace('DTLZ', '\nDTLZ')
-                    text = text.replace('WFG', '\nWFG')
-                    fp.write(text)
-
 def proc(folder_name : str):
     if folder_name[-1] != '/':
         folder_name += '/'
