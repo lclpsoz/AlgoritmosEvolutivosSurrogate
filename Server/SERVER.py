@@ -6,7 +6,7 @@ Created on Tue Aug 14 21:24:26 2018
 @author: joel
 """
 
-import os
+import os, subprocess, time
 import json
 
 import pandas as pd
@@ -29,7 +29,11 @@ import tensorflow as tf
 from keras.layers.core import Activation, Dropout
 from keras.models import Sequential
 from keras.layers import Dense
-from keras.layers import LSTM
+from keras.layers import SimpleRNN, LSTM
+import keras
+
+from numba import cuda
+import gc
 
 app = Flask(__name__)
 
@@ -40,7 +44,7 @@ app = Flask(__name__)
 ######################## Class for NeuralNetworks ########################
 """
 class NeuralNetwork:
-    def __init__(self):
+    def __init__(self, dim_1, dim_2, output_labels, classifier_name):
         self.session = tf.Session()
 
         self.graph = tf.get_default_graph()
@@ -51,20 +55,19 @@ class NeuralNetwork:
         with self.graph.as_default():
             with self.session.as_default():
                 try:
-                    dim_1 = 92
-                    dim_2 = 14
-                    output_labels = 92
                     self.model = Sequential()
 
-                    self.model.add(LSTM(100, return_sequences=False, input_shape=(dim_1, dim_2)))
-                    # model.add(Dropout(0.2))
+                    if classifier_name.startswith('RNN'):
+                        self.model.add(SimpleRNN(output_labels, return_sequences=False, input_shape=(dim_1, dim_2)))
+                    elif classifier_name.startswith('LSTM'):
+                        self.model.add(LSTM(output_labels, return_sequences=False, input_shape=(dim_1, dim_2)))
+                    # self.model.add(Dropout(0.2))
                     self.model.add(Dense(units=output_labels))
-                    # model.add(Activation('softmax'))
-                    # print(model.summary())
+                    self.model.add(Activation('softmax'))
                     self.model.compile(loss='mean_squared_error', optimizer='adam')
                     # return True
                 except Exception as e:
-                    console.log(e)
+                    print(e)
                     # return False
 
         # Initialize all TF variables.
@@ -77,7 +80,6 @@ class NeuralNetwork:
         return y
 
     def fit(self, x, y, epochs, verbose, shuffle):
-        # np.array([nSolution]), np.array([nObj[i]]), epochs=1, verbose=0, shuffle=False
         with self.graph.as_default():
             with self.session.as_default():
                 self.model.fit(x, y, epochs=epochs, verbose=verbose, shuffle=shuffle)
@@ -188,35 +190,73 @@ def classificador():
     global txErro
     global real 
     global classifier_name
+    global population_size
+    global not_first_run
     #global classifierInit
     
-    classifierInit = list();
+    try:
+        not_first_run
+    except NameError:
+        archive_old_mse()
+        not_first_run = True
+
+    classifierInit = list()
     message = request.get_json(silent=True)
     #nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
     #nObj = np.asarray(message["objetivos"]) #passa o numero de variaveis na posicao 0
-    classifier_name = message["processar"]
-    nObj = np.asarray(message["objetivos"])
+
+    # Message id doesn't make sense because it's the same
+    # object used in other cases.
+    classifier_name = message['algoritmo']
+    tagProblem = message['processar']
+    nObj = np.asarray(message['objetivos'])
+    if nObj[0] == 3:
+        population_size = 92
+    else:
+        population_size = 764
     
-    print("classificador:", classifier_name)
-    if classifier_name == "SVM":
+    # print("classificador:", classifier_name)
+    if classifier_name.startswith("SVM"):
         classifierInit = SVR(kernel='rbf', C=1e3, gamma=0.1, tol=0.01)
-    elif classifier_name == "TREE":
+    elif classifier_name.startswith("TREE"):
         for i in range(nObj[0]):
             classifierInit.append(DecisionTreeRegressor(max_depth=500,min_samples_split=2, random_state=0,criterion='mse'))    
-    elif classifier_name == "RAMDOMFOREST":
+    elif classifier_name.startswith("RAMDOMFOREST"):
         for i in range(nObj[0]):
             classifierInit.append(RandomForestRegressor(n_estimators=200, max_depth=None,min_samples_split=2, random_state=0,criterion='mse'))  
-    elif classifier_name == "MLP":
+    elif classifier_name.startswith("MLP"):
         classifierInit = MLPRegressor(hidden_layer_sizes=(10,),max_iter=1000)
-    elif classifier_name == "NO-SURROGATE":
+    elif classifier_name.startswith("NO-SURROGATE"):
         classifierInit = None
-    elif classifier_name == "LSTM":
-        dim_1 = 92
-        dim_2 = 14
-        output_labels = 92
+    elif classifier_name.startswith("LSTM") or classifier_name.startswith("RNN"):
+        # Clear any session, in case it's not the first one.
+        keras.backend.clear_session()
+
+        # Clear GPU memory
+        cuda.select_device(0)
+        cuda.close()
+
+        # Clear classifiers if they exist
+        if 'classifier' in globals():
+            del classifier
+        gc.collect()
+
+        if tagProblem.startswith('WFG'):
+            if population_size == 92:
+                dim_2 = 14
+            else:
+                dim_2 = 19
+        elif tagProblem.startswith('DTLZ'):
+            if population_size == 92:
+                dim_2 = 12
+            else:
+                dim_2 = 19
+        else:
+            # Invalid dimension
+            dim_2 = -1
         for i in range(nObj[0]):
-            classifierInit.append(NeuralNetwork())
-    
+            # print('Modeling NN classifier[' + str(i) + '].')
+            classifierInit.append(NeuralNetwork(population_size, dim_2, population_size, classifier_name))
     classifier = classifierInit
     # print("-------------- STARTING FIT ----------------")
     # with open("nSolution.txt", "r") as fp:
@@ -241,6 +281,7 @@ def treino():
     global tamanho
     global execult
     global treinou
+    global population_size
     
     lista = []
     message = request.get_json(silent=True)
@@ -261,11 +302,19 @@ def treino():
         f.write ("TREINA\n")
 
     # Fit for LSTM
-    if isinstance(classifier[0], NeuralNetwork):
-        # print("shape(nSolution) =", np.array(nSolution).shape)
-        # print("shape(nObj) =", np.array(nObj).shape)
+    if classifier != None and isinstance(classifier[0], NeuralNetwork):
+        if len(nSolution) > population_size:
+            nSolution = np.array(np.split(nSolution, len(nSolution)//population_size))
+        else:
+            nSolution = np.array([nSolution])
         for i in range(len(nObj)):
-            classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 10, 0, False)
+            # print('Fitting NN classifier[' + str(i) + '].')
+            if len(nObj[i] > population_size):
+                obj_now = np.array(np.split(nObj[i], len(nObj[i])//population_size))
+            else:
+                obj_now = np.array([nObj[i]])
+            
+            classifier[i].fit(nSolution, obj_now, 10, 0, False)
 
     # For for anything else
     elif classifier != None:
@@ -303,7 +352,6 @@ def save():
     
     message = request.get_json(silent=True)
     nome = message["algoritmo"]
-    # print("# /SAVE # nome = " + nome)
     nSolution = np.asarray(message["solucoes"])
     nObj = np.asarray(message["objetivos"])
     #salva o erro e o classificador
@@ -348,26 +396,20 @@ def classifica():
             for i in range(len(nObj)):
                 # Classifier can be a keras Sequential model, in that case, could have a variable
                 # batch_size.
-                y_predict.append(classifier[i].predict(np.array([nSolution])))
-                #print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
+                y_predict.append(classifier[i].predict(np.array([nSolution]))[0])
         else:
             for i in range(len(nObj)):
                 y_predict.append(classifier[i].predict(nSolution))
+                # print ("score classifier", i, classifier[i].score(nSolution, nObj)) TODO: Discover why it's NOT working!!!
 
     # Read expected objective from file
     with open ("../jMetal-master/jmetal-exec/out.txt", 'r') as f:
         s = f.read()
-        # print ("s: ", type (s), s)
         obj_expected = json.loads(s)
-        # print ("lst:", obj_expected)
 
-    # print ("y_predict lens:", len(y_predict), len(y_predict[0]))
-    # print ("y_predict types:", type(y_predict), type(y_predict[0]), type(y_predict[0][0]))
-    # print ("y_predict:", y_predict)
     if classifier == None:
-        y_predict = [[] for i in range(3)]
+        y_predict = [[] for i in range(len(obj_expected[0]))]
         for indv in obj_expected:
-            assert len(indv) == len(y_predict)
             for idObj in range(len(indv)):
                 y_predict[idObj].append(indv[idObj])
     else:
@@ -378,24 +420,24 @@ def classifica():
             for j in range(len(y_predict)):
                 obj_predict[i].append(y_predict[j][i])
 
-    # print ("obj_predict:", obj_predict)
+        evalSurrogate(obj_expected, obj_predict)
 
-    # evalSurrogate(obj_expected, obj_predict)
+    return json.dumps({"retorno": np.asarray(y_predict).tolist()})
 
-    #print ("score classifier",0, classifier[0].score(nSolution, obj_expected))
-
-    y_predict = np.asarray(y_predict)
-#    i = 0
-#    for valor in y_predict:
-#        real.append(nObj[i])
-#        txErro.append(y_predict[i])
-#        i+=1
-
-
-    return json.dumps({"retorno": y_predict.tolist()})
+def archive_old_mse():
+    old_mse = []
+    for f in os.listdir('.'):
+        if f.startswith('mse_') and '.txt' in f:
+            old_mse.append(os.path.abspath(f))
+    if len(old_mse):
+        folder_name = 'mse_backp_' + str(int(time.time()))
+        os.makedirs(folder_name)
+        folder_name = os.path.abspath(folder_name)
+        for f in old_mse:
+            subprocess.Popen(['mv', f, folder_name])
 
 def evalSurrogate(obj_expected, obj_predict):
-    
+    mse_out_fname = "mse_" + classifier_name + ".txt"
     from sklearn.metrics import mean_absolute_error, mean_squared_error
     from pprint import pprint
     from statistics import mean
@@ -405,9 +447,9 @@ def evalSurrogate(obj_expected, obj_predict):
     
     # Inicialmente, fazendo media de todos os valores avaliados.
     mse = mean_squared_error(obj_expected, obj_predict)
-    with open ("out.txt", "a") as f:
-        f.write (str (mse) + '\n')
-    print ("mse:", mse)
+    with open(mse_out_fname, "a") as f:
+        f.write(str(mse) + '\n')
+    # print("mse:", mse)
 
     """
     print ("obj_predict:")
@@ -448,7 +490,7 @@ def Inicializa():
     
     nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
     nObj = np.asarray(message["objetivos"]) #passa o numero de variaveis na posicao 0
-    print(f'O tamanho do treino: {nObj, nSolution}')
+    # print(f'O tamanho do treino: {nObj, nSolution}')
     retorno = lhs(nObj[0], samples=nSolution[0])
     retorno = np.asarray(retorno)
 
