@@ -54,9 +54,27 @@ def generate_latex_table(data, lst_problems : list):
     
     return table
 
+def add_midrule_to_latex_str(latex_str : str):
+    latex_str = latex_str.split('\n')
+    latex_str[1] = '\\toprule'
+    latex_str[3] = '\\midrule'
+    latex_str[-2] = '\\bottomrule'
+    for i in range(0, len(latex_str)-1):
+        print(latex_str[i][-1], latex_str[i+1][0])
+        if latex_str[i][-1]  == '\\' and not latex_str[i+1].startswith('  ') and latex_str[i+1][0] != '\\':
+            latex_str[i] += ' \\hline'
+    return '\n'.join(latex_str)
 
 # lst_problems = ['DTLZ1', 'DTLZ2', 'DTLZ3', 'WFG1', 'WFG2', 'WFG3']
 lst_problems = []
-for i in range(1, 10):
-    lst_problems.append('WFG' + str(i))
-print(tabulate(generate_latex_table(proc('aux_igd'), lst_problems), headers=[''] + lst_problems, tablefmt='latex_raw'))
+# for i in range(1, 10):
+#     lst_problems.append('WFG' + str(i))
+for i in range(1, 8):
+    lst_problems.append('DTLZ' + str(i))
+
+table = generate_latex_table(proc('files_igd'), lst_problems)
+print(table)
+table[0][0] = 'NSGAII45'
+table[2][0] = 'NSGAII45SBmyoAD'
+
+print(add_midrule_to_latex_str(tabulate(table, headers=[''] + lst_problems, tablefmt='latex_raw')))
