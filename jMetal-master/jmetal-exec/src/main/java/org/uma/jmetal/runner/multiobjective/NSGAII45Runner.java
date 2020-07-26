@@ -65,7 +65,8 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		int numObj = 3;
 
 		// Limits number of version of problems to be simulated.
-		int maxVersionsProblems = 3;
+		int startVersionProblems = 1;
+		int maxVersionsProblems = 10;
 
 //		case 0: "NO-SURROGATE";
 //		case 1: "SVM";
@@ -73,9 +74,12 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 //		case 3: "TREE";
 //		case 4: "LSTM";
 //		case 5: "RNN";
+//		case 6: "RANDOM";
 		
-		int indsClassSurrogates[] = { 0, 2, 3, 4, 5 };
-//		int indsClassSurrogates[] = { 4 };
+		int indsClassSurrogates[] = { 4 };
+		
+		int nodesHiddenLayerRNN = 92;
+		int numOfEpochs = 500;
 		
 
 		for (int indClassSurrogate : indsClassSurrogates) {
@@ -84,7 +88,7 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 				int amntOfVersions = Math.min(7, maxVersionsProblems);
 				if (tagProblem == "WFG")
 					amntOfVersions = Math.min(9, maxVersionsProblems);
-				for (int p = 1; p <= amntOfVersions; p++) {
+				for (int p = startVersionProblems; p <= amntOfVersions; p++) {
 					for (String metodo : metodos) {
 
 						Problem<DoubleSolution> problem;
@@ -95,6 +99,11 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 						String referenceParetoFront = "";
 						InvertedGenerationalDistance indice;
 						String classifierSurrogate = classificador(indClassSurrogate);
+						// If Neural Network, the amount of nodes and epochs are
+						// integrated in the surrogate name.
+						if(indClassSurrogate == 4 || indClassSurrogate == 5)
+							classifierSurrogate += 	"_" + Integer.toString(nodesHiddenLayerRNN) +
+													"_" + Integer.toString(numOfEpochs);
 						ArrayList igds = new ArrayList<>();
 						String algoritmo = null;
 
@@ -319,6 +328,9 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 			break;
 		case 5:
 			classificador = "RNN";
+			break;
+		case 6:
+			classificador = "RANDOM";
 			break;
 		default:
 			classificador = "NO-SURROGATE";

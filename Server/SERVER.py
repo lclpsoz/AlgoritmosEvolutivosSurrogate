@@ -8,6 +8,7 @@ Created on Tue Aug 14 21:24:26 2018
 
 import os, subprocess, time
 import json
+import random
 
 import pandas as pd
 import numpy as np
@@ -56,11 +57,11 @@ class NeuralNetwork:
             with self.session.as_default():
                 try:
                     self.model = Sequential()
-
+                    hidden_layer_nodes = int(classifier_name.split('_')[1])
                     if classifier_name.startswith('RNN'):
-                        self.model.add(SimpleRNN(output_labels, return_sequences=False, input_shape=(dim_1, dim_2)))
+                        self.model.add(SimpleRNN(hidden_layer_nodes, return_sequences=False, input_shape=(dim_1, dim_2)))
                     elif classifier_name.startswith('LSTM'):
-                        self.model.add(LSTM(output_labels, return_sequences=False, input_shape=(dim_1, dim_2)))
+                        self.model.add(LSTM(hidden_layer_nodes, return_sequences=False, input_shape=(dim_1, dim_2)))
                     # self.model.add(Dropout(0.2))
                     self.model.add(Dense(units=output_labels))
                     self.model.add(Activation('softmax'))
@@ -192,6 +193,7 @@ def classificador():
     global classifier_name
     global population_size
     global not_first_run
+    global classifier_num_of_epochs
     #global classifierInit
     
     try:
@@ -199,6 +201,8 @@ def classificador():
     except NameError:
         archive_old_mse()
         not_first_run = True
+
+    classifier_num_of_epochs = None
 
     classifierInit = list()
     message = request.get_json(silent=True)
@@ -226,7 +230,7 @@ def classificador():
             classifierInit.append(RandomForestRegressor(n_estimators=200, max_depth=None,min_samples_split=2, random_state=0,criterion='mse'))  
     elif classifier_name.startswith("MLP"):
         classifierInit = MLPRegressor(hidden_layer_sizes=(10,),max_iter=1000)
-    elif classifier_name.startswith("NO-SURROGATE"):
+    elif classifier_name.startswith("NO-SURROGATE") or classifier_name.startswith("RANDOM"):
         classifierInit = None
     elif classifier_name.startswith("LSTM") or classifier_name.startswith("RNN"):
         # Clear any session, in case it's not the first one.
@@ -240,6 +244,8 @@ def classificador():
         if 'classifier' in globals():
             del classifier
         gc.collect()
+
+        classifier_num_of_epochs = int(classifier_name.split('_')[2])
 
         if tagProblem.startswith('WFG'):
             if population_size == 92:
@@ -282,6 +288,7 @@ def treino():
     global execult
     global treinou
     global population_size
+    global classifier_num_of_epochs
     
     lista = []
     message = request.get_json(silent=True)
@@ -314,7 +321,7 @@ def treino():
             else:
                 obj_now = np.array([nObj[i]])
             
-            classifier[i].fit(nSolution, obj_now, 10, 0, False)
+            classifier[i].fit(nSolution, obj_now, classifier_num_of_epochs, 0, False)
 
     # For for anything else
     elif classifier != None:
@@ -381,7 +388,8 @@ def save():
 def classifica():
     global classifier
     global txErro
-    global real 
+    global real
+    global classifier_name
     
     message = request.get_json(silent=True)
     nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
@@ -408,6 +416,14 @@ def classifica():
         obj_expected = json.loads(s)
 
     if classifier == None:
+        # If surrogate is random, instead of returning expected objetive,
+        # it will be randomly generated.
+        if classifier_name.startswith('RANDOM'):
+            obj_random = []
+            for i in range(len(obj_expected)):
+                obj_random.append([random.random() for x in range(3)])
+            evalSurrogate(obj_expected, obj_random)
+            obj_expected = obj_random
         y_predict = [[] for i in range(len(obj_expected[0]))]
         for indv in obj_expected:
             for idObj in range(len(indv)):
