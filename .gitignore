@@ -13,3 +13,4 @@ jMetal-master/jmetal-exec/bckp_data/
 *.png
 .ipynb_checkpoints
 */.ipynb_checkpoints/*
+.vscode

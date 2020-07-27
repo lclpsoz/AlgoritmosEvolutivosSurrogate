@@ -76,10 +76,11 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 //		case 5: "RNN";
 //		case 6: "RANDOM";
 		
-		int indsClassSurrogates[] = { 4 };
+		int indsClassSurrogates[] = { 4, 5 };
 		
-		int nodesHiddenLayerRNN = 92;
-		int numOfEpochs = 500;
+		int nodesHiddenLayerNN = 92;
+		int numOfEpochs = 10;
+		boolean avrOptimizationNN = true;
 		
 
 		for (int indClassSurrogate : indsClassSurrogates) {
@@ -101,9 +102,12 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 						String classifierSurrogate = classificador(indClassSurrogate);
 						// If Neural Network, the amount of nodes and epochs are
 						// integrated in the surrogate name.
-						if(indClassSurrogate == 4 || indClassSurrogate == 5)
-							classifierSurrogate += 	"_" + Integer.toString(nodesHiddenLayerRNN) +
+						if(indClassSurrogate == 4 || indClassSurrogate == 5) {
+							classifierSurrogate += 	"_" + Integer.toString(nodesHiddenLayerNN) +
 													"_" + Integer.toString(numOfEpochs);
+							if(avrOptimizationNN)
+								classifierSurrogate += 	"_" + "avr";
+						}
 						ArrayList igds = new ArrayList<>();
 						String algoritmo = null;
 

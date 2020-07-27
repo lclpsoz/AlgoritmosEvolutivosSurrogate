@@ -45,7 +45,7 @@ app = Flask(__name__)
 ######################## Class for NeuralNetworks ########################
 """
 class NeuralNetwork:
-    def __init__(self, dim_1, dim_2, output_labels, classifier_name):
+    def __init__(self, input_shape, output_labels, hidden_layer_nodes):
         self.session = tf.Session()
 
         self.graph = tf.get_default_graph()
@@ -57,17 +57,17 @@ class NeuralNetwork:
             with self.session.as_default():
                 try:
                     self.model = Sequential()
-                    hidden_layer_nodes = int(classifier_name.split('_')[1])
                     if classifier_name.startswith('RNN'):
-                        self.model.add(SimpleRNN(hidden_layer_nodes, return_sequences=False, input_shape=(dim_1, dim_2)))
+                        self.model.add(SimpleRNN(hidden_layer_nodes, return_sequences=False, input_shape=input_shape))
                     elif classifier_name.startswith('LSTM'):
-                        self.model.add(LSTM(hidden_layer_nodes, return_sequences=False, input_shape=(dim_1, dim_2)))
+                        self.model.add(LSTM(hidden_layer_nodes, return_sequences=False, input_shape=input_shape))
                     # self.model.add(Dropout(0.2))
                     self.model.add(Dense(units=output_labels))
                     self.model.add(Activation('softmax'))
                     self.model.compile(loss='mean_squared_error', optimizer='adam')
                     # return True
                 except Exception as e:
+                    print("------------------| ERROR ON NeuralNetwork |------------------")
                     print(e)
                     # return False
 
@@ -163,7 +163,6 @@ def SaveIGD(lista, name):
     arquivo.write(str(media)+ "+/-" + str(std) + '\n')
     arquivo.close()
 
-
 def EscreveArquivo(indice, lista, name):
     arquivo = open(name,'w')
     i = 0
@@ -171,7 +170,6 @@ def EscreveArquivo(indice, lista, name):
         arquivo.write(str(indice[i]) +" "+ str(lista[i])+'\n')
         i += 1
     arquivo.close()
-
 
 def EscreveArquivoC(indice, compara ,lista, name):
     arquivo = open(name,'w')
@@ -182,9 +180,6 @@ def EscreveArquivoC(indice, compara ,lista, name):
         i += 1
     arquivo.close()
 
-
-
-
 @app.route("/classificador", methods=['GET', 'POST'])
 def classificador():
     global classifier
@@ -194,7 +189,7 @@ def classificador():
     global population_size
     global not_first_run
     global classifier_num_of_epochs
-    #global classifierInit
+    global classifier_avr_opt
     
     try:
         not_first_run
@@ -245,8 +240,6 @@ def classificador():
             del classifier
         gc.collect()
 
-        classifier_num_of_epochs = int(classifier_name.split('_')[2])
-
         if tagProblem.startswith('WFG'):
             if population_size == 92:
                 dim_2 = 14
@@ -260,19 +253,19 @@ def classificador():
         else:
             # Invalid dimension
             dim_2 = -1
+
+        amnt_hidden_nodes = int(classifier_name.split('_')[2])
+        classifier_num_of_epochs = int(classifier_name.split('_')[2])
+        if('avr' in classifier_name):
+            classifier_avr_opt = True
+            input_shape = (population_size, 1)
+        else:
+            classifier_avr_opt = False
+            input_shape = (population_size, dim_2)
+        
         for i in range(nObj[0]):
-            # print('Modeling NN classifier[' + str(i) + '].')
-            classifierInit.append(NeuralNetwork(population_size, dim_2, population_size, classifier_name))
+            classifierInit.append(NeuralNetwork(input_shape, population_size, amnt_hidden_nodes))
     classifier = classifierInit
-    # print("-------------- STARTING FIT ----------------")
-    # with open("nSolution.txt", "r") as fp:
-    #     nSolution = np.array(json.load(fp))
-    # with open("nObj.txt", "r") as fp:
-    #     nObj = np.array(json.load(fp)).transpose()
-    # # print("INPUT SHAPE =", np.array([nSolution]).shape)
-    # for i in range(len(nObj)):
-    #     classifier[i].fit(np.array([nSolution]), np.array([nObj[i]]), 1, 0, False)
-    # print("-------------- END STARTING FIT ----------------")
     
     return json.dumps({"retorno": []})
 
@@ -289,55 +282,40 @@ def treino():
     global treinou
     global population_size
     global classifier_num_of_epochs
+    global classifier_avr_opt
     
     lista = []
     message = request.get_json(silent=True)
-    # with open("nSolution.txt", "w") as fp:
-    #     json.dump(message["solucoes"], fp)
-    # with open("nObj.txt", "w") as fp:
-    #     json.dump(message["objetivos"], fp)
     nSolution = np.asarray(message["solucoes"])
     nObj = np.asarray(message["objetivos"])
-    #print(f'O tamanho do treino: {len(nObj)}')
-    #processar = message["processar"]
-    #erro = message["erro"]  
     
     nObj = nObj.transpose()
-    # print  ("TREINA", "nSolution", nSolution)
-    # print  ("TREINA", "nObj", nObj)
-    with open ("out.txt", "a") as f:
-        f.write ("TREINA\n")
 
     # Fit for LSTM
-    if classifier != None and isinstance(classifier[0], NeuralNetwork):
-        if len(nSolution) > population_size:
-            nSolution = np.array(np.split(nSolution, len(nSolution)//population_size))
-        else:
-            nSolution = np.array([nSolution])
-        for i in range(len(nObj)):
-            # print('Fitting NN classifier[' + str(i) + '].')
-            if len(nObj[i] > population_size):
-                obj_now = np.array(np.split(nObj[i], len(nObj[i])//population_size))
+    if classifier != None:
+        if isinstance(classifier[0], NeuralNetwork):
+            if len(nSolution) > population_size:
+                # Multiple datasets
+                nSolution = np.array(np.split(nSolution, len(nSolution)//population_size))
             else:
-                obj_now = np.array([nObj[i]])
-            
-            classifier[i].fit(nSolution, obj_now, classifier_num_of_epochs, 0, False)
+                nSolution = np.array([nSolution])
 
-    # For for anything else
-    elif classifier != None:
-        for i in range(len(nObj)):
-            classifier[i] = classifier[i].fit(nSolution, nObj[i])
-    #treinou = True
-    
-    #versão Batch
-    #classifier = classifier.fit(nSolution, nObj);
-    #y_predict = classifier.predict(nSolution)
-    
-    #i = 0
-    #for valor in y_predict:
-    #    real.append(nObj[i])
-    #    txErro.append(y_predict[i])
-    #    i+=1
+            if classifier_avr_opt:
+                # Average of all decision variables for each individual
+                nSolution = np.mean(nSolution, axis=2)
+                nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
+            for i in range(len(nObj)):
+                if len(nObj[i] > population_size):
+                    # Multiple datasets
+                    obj_now = np.array(np.split(nObj[i], len(nObj[i])//population_size))
+                else:
+                    obj_now = np.array([nObj[i]])
+                
+                classifier[i].fit(nSolution, obj_now, classifier_num_of_epochs, 0, False)
+        else:
+            for i in range(len(nObj)):
+                classifier[i] = classifier[i].fit(nSolution, nObj[i])
+
     
     return json.dumps({"retorno": lista})
 
@@ -390,6 +368,7 @@ def classifica():
     global txErro
     global real
     global classifier_name
+    global classifier_avr_opt
     
     message = request.get_json(silent=True)
     nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
@@ -401,10 +380,14 @@ def classifica():
     nObj = nObj.transpose()
     if classifier != None:
         if isinstance(classifier[0], NeuralNetwork):
+            nSolution = np.array([nSolution])
+            if classifier_avr_opt:
+                nSolution = np.mean(nSolution, axis=2)
+                nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
             for i in range(len(nObj)):
                 # Classifier can be a keras Sequential model, in that case, could have a variable
                 # batch_size.
-                y_predict.append(classifier[i].predict(np.array([nSolution]))[0])
+                y_predict.append(classifier[i].predict(nSolution)[0])
         else:
             for i in range(len(nObj)):
                 y_predict.append(classifier[i].predict(nSolution))
