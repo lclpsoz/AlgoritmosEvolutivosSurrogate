@@ -58,181 +58,185 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 	public static void main(String[] args) throws JMetalException, IOException {
 
 		long tNow = System.currentTimeMillis();
-
-		int numExecution = 20;
-		String metodos[] = { "Batch", "Online" };
-		String tagProblems[] = { "DTLZ", "WFG" };
 		int numObj = 3;
+		int numExecution = 1;
 
+		String surrogateMethods[] = { "Batch", "Online" };
+		String problemTags[] = { "DTLZ", "WFG" };
 		// Limits number of version of problems to be simulated.
 		int startVersionProblems = 1;
-		int maxVersionsProblems = 10;
+		int maxVersionsProblems = 3;
 
 //		case 0: "NO-SURROGATE";
 //		case 1: "SVM";
 //		case 2: "RAMDOMFOREST";
 //		case 3: "TREE";
-//		case 4: "LSTM";
-//		case 5: "RNN";
+//		case 4: "LSTM-FIXED";
+//		case 5: "RNN-FIXED";
 //		case 6: "RANDOM";
-		
-		int indsClassSurrogates[] = { 4, 5 };
 		
 		int nodesHiddenLayerNN = 92;
 		int numOfEpochs = 10;
-		boolean avrOptimizationNN = true;
-		
+		boolean avrOptimizationNN = false;
+		// If Neural Network, more information is integrated in surrogateName
+		String[] surrogateNNs = { "LSTM-FIXED" , "RNN-FIXED" };
+		String suffixNN = "";
+		suffixNN += 	"_amntNodesHidden=" + Integer.toString(nodesHiddenLayerNN) +
+								"_amntEpochs=" + Integer.toString(numOfEpochs);
 
-		for (int indClassSurrogate : indsClassSurrogates) {
-			for (String tagProblem : tagProblems) {
-
-				int amntOfVersions = Math.min(7, maxVersionsProblems);
-				if (tagProblem == "WFG")
-					amntOfVersions = Math.min(9, maxVersionsProblems);
-				for (int p = startVersionProblems; p <= amntOfVersions; p++) {
-					for (String metodo : metodos) {
-
-						Problem<DoubleSolution> problem;
-						Algorithm<List<DoubleSolution>> algorithm;
-						CrossoverOperator<DoubleSolution> crossover;
-						MutationOperator<DoubleSolution> mutation;
-						SelectionOperator<List<DoubleSolution>, DoubleSolution> selection;
-						String referenceParetoFront = "";
-						InvertedGenerationalDistance indice;
-						String classifierSurrogate = classificador(indClassSurrogate);
-						// If Neural Network, the amount of nodes and epochs are
-						// integrated in the surrogate name.
-						if(indClassSurrogate == 4 || indClassSurrogate == 5) {
-							classifierSurrogate += 	"_" + Integer.toString(nodesHiddenLayerNN) +
-													"_" + Integer.toString(numOfEpochs);
-							if(avrOptimizationNN)
-								classifierSurrogate += 	"_" + "avr";
-						}
-						ArrayList igds = new ArrayList<>();
-						String algoritmo = null;
-
-						String nameProblem = tagProblem + Integer.toString(p);
-
-						int maxEval = 10000;
-						int populationSize = -1;
-						String surrogate = "Surrogate_" + classifierSurrogate + "_" + metodo;
-						boolean online = false;
-						boolean noSurrogate = false;
-						if(indClassSurrogate == 0)
-							noSurrogate = false;
-
-						if (metodo.equals("Online"))
-							online = true;
-
-						// Identifier of the current simulation!
-						String execIdentifier = "out_NSGAII45_IGD_" + tagProblem + "_" + surrogate + "_" + "Obj-"
-								+ Integer.toString(numObj) + "_" + "EvalPopulation-" + Integer.toString(maxEval) + "_"
-								+ "PopulationSize-" + Integer.toString(populationSize) + "_" + "timeStamp-"
-								+ String.valueOf(tNow);
-						System.out.println("----------| " + execIdentifier + " |----------");
-
-						for (int i = 0; i < numExecution; i++) {
-							String problemName;
-							if (args.length == 1) {
-								problemName = args[0];
-							} else if (args.length == 2) {
-								problemName = args[0];
-								referenceParetoFront = args[1];
-							} else {
-								if (nameProblem.startsWith("DTLZ"))
-									problemName = "org.uma.jmetal.problem.multiobjective.dtlz." + nameProblem;
-								else
-									problemName = "org.uma.jmetal.problem.multiobjective.wfg." + nameProblem;
-								referenceParetoFront = "";
-							}
-
-							// problem = ProblemUtils.<DoubleSolution> loadProblem(problemName);
-							// problem = problem.createSolution();
-							problem = getProblem(nameProblem, numObj);
-
-							referenceParetoFront = "../jmetal-problem/src/test/resources/pareto_fronts/" + nameProblem
-									+ "." + Integer.toString(numObj) + "D.pf";
-							// referenceParetoFront =
-							// "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf";
-							if (numObj == 10)
-								populationSize = 764;
-							else if (numObj == 3)
-								populationSize = 92;
-
-							ArrayList array = new ArrayList<>(1);
-							array.add(numObj);
-
-							user userObject = new user(
-									classifierSurrogate + "_" + nameProblem + "_" + metodo,
-									tagProblem,
-									new ArrayList<>(),
-									array
-							);
-							ArrayList SwarmInicio = http("http://127.0.0.1:5000/classificador", userObject);
-
-							double crossoverProbability = 0.9;
-							double crossoverDistributionIndex = 20.0;
-							crossover = new SBXCrossover(crossoverProbability, crossoverDistributionIndex);
-
-							double mutationProbability = 1.0 / problem.getNumberOfVariables();
-							double mutationDistributionIndex = 20.0;
-							mutation = new PolynomialMutation(mutationProbability, mutationDistributionIndex);
-
-							selection = new BinaryTournamentSelection<DoubleSolution>(
-									new RankingAndCrowdingDistanceComparator<DoubleSolution>());
-
-							algorithm = new NSGAII45<DoubleSolution>(problem, maxEval, populationSize, crossover,
-									mutation, selection, new SequentialSolutionListEvaluator<DoubleSolution>(),
-									online, noSurrogate);
-
-							AlgorithmRunner algorithmRunner = new AlgorithmRunner.Executor(algorithm).execute();
-
-							List<DoubleSolution> population = algorithm.getResult();
-							// long computingTime = algorithmRunner.getComputingTime() ;
-
-							/*
-							 * new SolutionListOutput(population) .setSeparator("\t")
-							 * .setVarFileOutputContext(new DefaultFileOutputContext(surrogate
-							 * +"VAR"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(
-							 * numObj)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
-							 * .setFunFileOutputContext(new DefaultFileOutputContext(surrogate
-							 * +"FUN"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(
-							 * numObj)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
-							 * .print();
-							 */
-
-							// JMetalLogger.logger.info("Total execution time: " + computingTime + "ms");
-
-							printFinalSolutionSet(population);
-							if (!referenceParetoFront.equals("")) {
-								// printQualityIndicators(population, referenceParetoFront) ;
-								indice = new InvertedGenerationalDistance(referenceParetoFront, 2.0);
-								double IGD = indice.evaluate(population);
-								igds.add(IGD);
-								String now = tagProblem + String.valueOf(p) + ";" + String.valueOf(IGD) + '\n';
-								File file = new File(execIdentifier + ".txt");
-								FileWriter fr = new FileWriter(file, true);
-								fr.write(now);
-								fr.close();
-								System.out.print(now);
-								System.out.println("End of execution " + Integer.toString(i + 1) + " of "
-										+ Integer.toString(numExecution));
-							}
-						}
-
-						// Original problemNAme:
-						// String ProblemNAme =
-						// "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(numObj)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
-						String ProblemNAme = "../../EXPERIMENTOS_NSGA2/" + surrogate + algoritmo + "_" + nameProblem
-								+ "_" + Integer.toString(numObj) + "_Objectivos" + Integer.toString(maxEval)
-								+ "Eval_Population_" + Integer.toString(populationSize);
-
-						user userObject = new user(ProblemNAme, ProblemNAme, new ArrayList<>(), igds);
-						ArrayList SwarmInicio = http("http://127.0.0.1:5000/save", userObject);
-					}
+		ArrayList<String> surrogateNames = new ArrayList<String>();
+		for(String surNN : surrogateNNs) {
+			for(int avrOpt = 0; avrOpt <= 1; avrOpt++) {
+				for(int timestep = 22; timestep <= 22; timestep += 1) {
+					String now = surNN + suffixNN + "_ts=" + Integer.toString(timestep);
+					if(avrOpt == 1)
+						now += "_avr";
+					surrogateNames.add(now);
+					System.out.println(now);
 				}
 			}
 		}
+		
+		for(String surrogateName : surrogateNames)
+			for(String surrogateMethod : surrogateMethods)
+				for(String problemTag : problemTags) {
+					int amntOfVersions = Math.min(7, maxVersionsProblems);
+					if (problemTag == "WFG")
+						amntOfVersions = Math.min(9, maxVersionsProblems);
+					for(int problemId = startVersionProblems; problemId <= amntOfVersions; problemId++)
+						executeExperiment(numObj, (int)tNow, numExecution, args,
+								surrogateName, surrogateMethod,
+								problemTag, problemTag + Integer.toString(problemId));
+				}
+		
+	}
+	
+	public static void executeExperiment(int numObj, int tNow, int numExecution, String[] args,
+			String surrogateName, String surrogateMethod,
+			String problemTag, String problemName) throws JMetalException, IOException {
+		Problem<DoubleSolution> problem;
+		Algorithm<List<DoubleSolution>> algorithm;
+		CrossoverOperator<DoubleSolution> crossover;
+		MutationOperator<DoubleSolution> mutation;
+		SelectionOperator<List<DoubleSolution>, DoubleSolution> selection;
+		String referenceParetoFront = "";
+		InvertedGenerationalDistance indice;
+		ArrayList igds = new ArrayList<>();
+		String algoritmo = null;
+
+		int maxEval = 10000;
+		int populationSize = -1;
+		String surrogate = "Surrogate_" + surrogateName + "_" + surrogateMethod;
+		boolean online = false;
+
+		if (surrogateMethod.equals("Online"))
+			online = true;
+
+		// Identifier of the current simulation!
+		String execIdentifier = "out_NSGAII45_IGD_" + problemTag + "_" + surrogate + "_" + "Obj-"
+				+ Integer.toString(numObj) + "_" + "EvalPopulation-" + Integer.toString(maxEval) + "_"
+				+ "PopulationSize-" + Integer.toString(populationSize) + "_" + "timeStamp-"
+				+ String.valueOf(tNow);
+		System.out.println("----------| " + execIdentifier + " |----------");
+
+		for (int i = 0; i < numExecution; i++) {
+			String problemNameOld;
+			if (args.length == 1) {
+				problemNameOld = args[0];
+			} else if (args.length == 2) {
+				problemNameOld = args[0];
+				referenceParetoFront = args[1];
+			} else {
+				if (problemName.startsWith("DTLZ"))
+					problemNameOld = "org.uma.jmetal.problem.multiobjective.dtlz." + problemName;
+				else
+					problemNameOld = "org.uma.jmetal.problem.multiobjective.wfg." + problemName;
+				referenceParetoFront = "";
+			}
+
+			// problem = ProblemUtils.<DoubleSolution> loadProblem(problemName);
+			// problem = problem.createSolution();
+			problem = getProblem(problemName, numObj);
+
+			referenceParetoFront = "../jmetal-problem/src/test/resources/pareto_fronts/" + problemName
+					+ "." + Integer.toString(numObj) + "D.pf";
+			// referenceParetoFront =
+			// "/home/joe/MESTRADO_LINUX/eclipse-workspace/jMetal-master.zip_expanded/jMetal-master/jmetal-problem/src/test/resources/pareto_fronts/DTLZ2.10D.pf";
+			if (numObj == 10)
+				populationSize = 764;
+			else if (numObj == 3)
+				populationSize = 92;
+
+			ArrayList array = new ArrayList<>(1);
+			array.add(numObj);
+
+			user userObject = new user(
+					surrogateName + "_" + problemName + "_" + surrogateMethod,
+					problemTag,
+					new ArrayList<>(),
+					array
+			);
+			ArrayList SwarmInicio = http("http://127.0.0.1:5000/classificador", userObject);
+
+			double crossoverProbability = 0.9;
+			double crossoverDistributionIndex = 20.0;
+			crossover = new SBXCrossover(crossoverProbability, crossoverDistributionIndex);
+
+			double mutationProbability = 1.0 / problem.getNumberOfVariables();
+			double mutationDistributionIndex = 20.0;
+			mutation = new PolynomialMutation(mutationProbability, mutationDistributionIndex);
+
+			selection = new BinaryTournamentSelection<DoubleSolution>(
+					new RankingAndCrowdingDistanceComparator<DoubleSolution>());
+
+			algorithm = new NSGAII45<DoubleSolution>(problem, maxEval, populationSize, crossover,
+					mutation, selection, new SequentialSolutionListEvaluator<DoubleSolution>(),
+					online, surrogateName == "NO-SURROGATE");
+
+			AlgorithmRunner algorithmRunner = new AlgorithmRunner.Executor(algorithm).execute();
+
+			List<DoubleSolution> population = algorithm.getResult();
+			// long computingTime = algorithmRunner.getComputingTime() ;
+
+			/*
+			 * new SolutionListOutput(population) .setSeparator("\t")
+			 * .setVarFileOutputContext(new DefaultFileOutputContext(surrogate
+			 * +"VAR"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(
+			 * numObj)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
+			 * .setFunFileOutputContext(new DefaultFileOutputContext(surrogate
+			 * +"FUN"+Integer.toString(maxEval)+"Eval"+nameProblem+"_"+Integer.toString(
+			 * numObj)+"OBJ_Population_"+Integer.toString(populationSize)+"_EXC"+i+".tsv"))
+			 * .print();
+			 */
+
+			// JMetalLogger.logger.info("Total execution time: " + computingTime + "ms");
+
+			printFinalSolutionSet(population);
+			if (!referenceParetoFront.equals("")) {
+				// printQualityIndicators(population, referenceParetoFront) ;
+				indice = new InvertedGenerationalDistance(referenceParetoFront, 2.0);
+				double IGD = indice.evaluate(population);
+				igds.add(IGD);
+				String now = problemName + ";" + String.valueOf(IGD) + '\n';
+				File file = new File(execIdentifier + ".txt");
+				FileWriter fr = new FileWriter(file, true);
+				fr.write(now);
+				fr.close();
+				System.out.print(now);
+				System.out.println("End of execution " + Integer.toString(i + 1) + " of "
+						+ Integer.toString(numExecution));
+			}
+		}
+
+		// Original problemNAme:
+		// String ProblemNAme =
+		// "/home/joe/MESTRADO_LINUX/EXPERIMENTOS_NSGA2/"+surrogate+algoritmo+"_"+nameProblem+"_"+Integer.toString(numObj)+"_Objectivos"+Integer.toString(maxEval)+"Eval_Population_"+Integer.toString(populationSize);
+		String ProblemNAme = "../../EXPERIMENTOS_NSGA2/" + surrogate + algoritmo + "_" + problemName
+				+ "_" + Integer.toString(numObj) + "_Objectivos" + Integer.toString(maxEval)
+				+ "Eval_Population_" + Integer.toString(populationSize);
+
+		user userObject = new user(ProblemNAme, ProblemNAme, new ArrayList<>(), igds);
+		ArrayList SwarmInicio = http("http://127.0.0.1:5000/save", userObject);
 	}
 
 	public static Problem<DoubleSolution> getProblem(String prob, int nObj) {
@@ -313,34 +317,6 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 			}
 			return problem;
 		}
-	}
-
-	public static String classificador(int index) {
-		String classificador = null;
-		switch (index) {
-		case 1:
-			classificador = "SVM";
-			break;
-		case 2:
-			classificador = "RAMDOMFOREST";
-			break;
-		case 3:
-			classificador = "TREE";
-			break;
-		case 4:
-			classificador = "LSTM";
-			break;
-		case 5:
-			classificador = "RNN";
-			break;
-		case 6:
-			classificador = "RANDOM";
-			break;
-		default:
-			classificador = "NO-SURROGATE";
-			break;
-		}
-		return classificador;
 	}
 
 	public static ArrayList http(String url, user userObject) {

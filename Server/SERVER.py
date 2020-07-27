@@ -45,31 +45,30 @@ app = Flask(__name__)
 ######################## Class for NeuralNetworks ########################
 """
 class NeuralNetwork:
-    def __init__(self, input_shape, output_labels, hidden_layer_nodes):
+    def __init__(self, model_name, input_shape, output_labels, hidden_layer_nodes):
         self.session = tf.Session()
 
         self.graph = tf.get_default_graph()
-        # the folder in which the model and weights are stored
-        self.model_folder = os.path.join(os.path.abspath("src"), "static")
         self.model = None
         # for some reason in a flask app the graph/session needs to be used in the init else it hangs on other threads
         with self.graph.as_default():
             with self.session.as_default():
                 try:
                     self.model = Sequential()
-                    if classifier_name.startswith('RNN'):
+                    if model_name.startswith('RNN'):
                         self.model.add(SimpleRNN(hidden_layer_nodes, return_sequences=False, input_shape=input_shape))
-                    elif classifier_name.startswith('LSTM'):
+                    elif model_name.startswith('LSTM'):
                         self.model.add(LSTM(hidden_layer_nodes, return_sequences=False, input_shape=input_shape))
+                    else:
+                        print("!!!!!!NO MODEL!!!!!!")
+                        exit(0)
                     # self.model.add(Dropout(0.2))
                     self.model.add(Dense(units=output_labels))
                     self.model.add(Activation('softmax'))
                     self.model.compile(loss='mean_squared_error', optimizer='adam')
-                    # return True
                 except Exception as e:
                     print("------------------| ERROR ON NeuralNetwork |------------------")
                     print(e)
-                    # return False
 
         # Initialize all TF variables.
         self.session.run(tf.global_variables_initializer())
@@ -128,15 +127,13 @@ def Leitura(name):
 
 	return retorno
 
-
 def Save(lista, name):
-    import numpy as np
-#    arquivo = open(name,'w')
-#    i = 0
-#    while i < len(lista):    
-#        arquivo.writelines((lista[i]))
-#        i += 1
-#    arquivo.close()
+    # arquivo = open(name,'w')
+    # i = 0
+    # while i < len(lista):    
+    #     arquivo.writelines((lista[i]))
+    #     i += 1
+    # arquivo.close()
     np.savetxt(name, lista)
 
 def LeituraIGD(name):
@@ -190,6 +187,7 @@ def classificador():
     global not_first_run
     global classifier_num_of_epochs
     global classifier_avr_opt
+    global history_nSolution
     
     try:
         not_first_run
@@ -240,6 +238,7 @@ def classificador():
             del classifier
         gc.collect()
 
+        # Parametrization
         if tagProblem.startswith('WFG'):
             if population_size == 92:
                 dim_2 = 14
@@ -254,8 +253,18 @@ def classificador():
             # Invalid dimension
             dim_2 = -1
 
-        amnt_hidden_nodes = int(classifier_name.split('_')[2])
-        classifier_num_of_epochs = int(classifier_name.split('_')[2])
+        info = dict()
+        model_name = classifier_name.split('_')[0]
+        for arg in classifier_name.split('_'):
+            if '=' in arg:
+                key, value = arg.split('=')
+                try:
+                    info[key] = int(value)
+                except:
+                    info[key] = value
+
+        amnt_hidden_nodes = info['amntNodesHidden']
+        classifier_num_of_epochs = info['amntEpochs']
         if('avr' in classifier_name):
             classifier_avr_opt = True
             input_shape = (population_size, 1)
@@ -264,7 +273,7 @@ def classificador():
             input_shape = (population_size, dim_2)
         
         for i in range(nObj[0]):
-            classifierInit.append(NeuralNetwork(input_shape, population_size, amnt_hidden_nodes))
+            classifierInit.append(NeuralNetwork(model_name, input_shape, population_size, amnt_hidden_nodes))
     classifier = classifierInit
     
     return json.dumps({"retorno": []})
