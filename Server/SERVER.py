@@ -187,6 +187,7 @@ def classificador():
     global not_first_run
     global classifier_num_of_epochs
     global classifier_avr_opt
+    global classifier_timestep
     global history_nSolution
     
     try:
@@ -226,6 +227,8 @@ def classificador():
     elif classifier_name.startswith("NO-SURROGATE") or classifier_name.startswith("RANDOM"):
         classifierInit = None
     elif classifier_name.startswith("LSTM") or classifier_name.startswith("RNN"):
+        history_nSolution = []
+
         # Clear any session, in case it's not the first one.
         keras.backend.clear_session()
 
@@ -265,12 +268,13 @@ def classificador():
 
         amnt_hidden_nodes = info['amntNodesHidden']
         classifier_num_of_epochs = info['amntEpochs']
+        classifier_timestep = info['ts']
         if('avr' in classifier_name):
             classifier_avr_opt = True
-            input_shape = (population_size, 1)
+            input_shape = (classifier_timestep, population_size)
         else:
             classifier_avr_opt = False
-            input_shape = (population_size, dim_2)
+            input_shape = (classifier_timestep, population_size*dim_2)
         
         for i in range(nObj[0]):
             classifierInit.append(NeuralNetwork(model_name, input_shape, population_size, amnt_hidden_nodes))
@@ -292,6 +296,8 @@ def treino():
     global population_size
     global classifier_num_of_epochs
     global classifier_avr_opt
+    global classifier_timestep
+    global history_nSolution
     
     lista = []
     message = request.get_json(silent=True)
@@ -300,9 +306,9 @@ def treino():
     
     nObj = nObj.transpose()
 
-    # Fit for LSTM
     if classifier != None:
         if isinstance(classifier[0], NeuralNetwork):
+            # NeuralNetwork as Surrogate
             if len(nSolution) > population_size:
                 # Multiple datasets
                 nSolution = np.array(np.split(nSolution, len(nSolution)//population_size))
@@ -313,14 +319,24 @@ def treino():
                 # Average of all decision variables for each individual
                 nSolution = np.mean(nSolution, axis=2)
                 nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
-            for i in range(len(nObj)):
-                if len(nObj[i] > population_size):
-                    # Multiple datasets
-                    obj_now = np.array(np.split(nObj[i], len(nObj[i])//population_size))
-                else:
-                    obj_now = np.array([nObj[i]])
-                
-                classifier[i].fit(nSolution, obj_now, classifier_num_of_epochs, 0, False)
+
+            nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+            for step in nSolution:
+                # Saving nSolution history
+                history_nSolution.append(step)
+            if len(history_nSolution) >= classifier_timestep:
+                for i in range(len(nObj)):
+                    if len(nObj[i] > population_size):
+                        # Multiple datasets
+                        obj_now = np.array(np.split(nObj[i], len(nObj[i])//population_size))
+                    else:
+                        obj_now = np.array([nObj[i]])
+                    
+                    pos = min(len(obj_now)-1, len(history_nSolution) - classifier_timestep)
+                    while(pos >= 0):
+                        now = np.array(history_nSolution[-classifier_timestep-pos:])[:classifier_timestep]
+                        classifier[i].fit(np.array([now]), np.array([obj_now[-pos-1]]), classifier_num_of_epochs, 0, False)
+                        pos -= 1
         else:
             for i in range(len(nObj)):
                 classifier[i] = classifier[i].fit(nSolution, nObj[i])
@@ -378,6 +394,8 @@ def classifica():
     global real
     global classifier_name
     global classifier_avr_opt
+    global classifier_timestep
+    global history_nSolution
     
     message = request.get_json(silent=True)
     nSolution = np.asarray(message["solucoes"]) #passa o numero de exemplos na posicao 0
@@ -393,10 +411,13 @@ def classifica():
             if classifier_avr_opt:
                 nSolution = np.mean(nSolution, axis=2)
                 nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
+            nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+            for step in nSolution:
+                history_nSolution.append(step)
             for i in range(len(nObj)):
                 # Classifier can be a keras Sequential model, in that case, could have a variable
                 # batch_size.
-                y_predict.append(classifier[i].predict(nSolution)[0])
+                y_predict.append(classifier[i].predict(np.array([history_nSolution[-classifier_timestep:]]))[0])
         else:
             for i in range(len(nObj)):
                 y_predict.append(classifier[i].predict(nSolution))
