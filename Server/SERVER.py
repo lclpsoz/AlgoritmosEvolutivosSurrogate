@@ -213,7 +213,6 @@ def classificador():
     else:
         population_size = 764
     
-    # print("classificador:", classifier_name)
     if classifier_name.startswith("SVM"):
         classifierInit = SVR(kernel='rbf', C=1e3, gamma=0.1, tol=0.01)
     elif classifier_name.startswith("TREE"):
@@ -244,17 +243,17 @@ def classificador():
         # Parametrization
         if tagProblem.startswith('WFG'):
             if population_size == 92:
-                dim_2 = 14
+                amntVarDir = 14
             else:
-                dim_2 = 19
+                amntVarDir = 19
         elif tagProblem.startswith('DTLZ'):
             if population_size == 92:
-                dim_2 = 12
+                amntVarDir = 12
             else:
-                dim_2 = 19
+                amntVarDir = 19
         else:
             # Invalid dimension
-            dim_2 = -1
+            amntVarDir = -1
 
         info = dict()
         model_name = classifier_name.split('_')[0]
@@ -267,17 +266,31 @@ def classificador():
                     info[key] = value
 
         amnt_hidden_nodes = info['amntNodesHidden']
+        if amnt_hidden_nodes.startswith('PROP'):
+            multi = float(amnt_hidden_nodes.split('-')[1])/100
+            amnt_hidden_nodes = int(round(amntVarDir*multi))
+
         classifier_num_of_epochs = info['amntEpochs']
         classifier_timestep = info['ts']
-        if('avr' in classifier_name):
-            classifier_avr_opt = True
-            input_shape = (classifier_timestep, population_size)
+        if('FIXED-2' in classifier_name):
+            output_labels = 1
+            if('avr' in classifier_name):
+                classifier_avr_opt = True
+                input_shape = (classifier_timestep, 1)
+            else:
+                classifier_avr_opt = False
+                input_shape = (classifier_timestep, amntVarDir)
         else:
-            classifier_avr_opt = False
-            input_shape = (classifier_timestep, population_size*dim_2)
+            output_labels = population_size
+            if('avr' in classifier_name):
+                classifier_avr_opt = True
+                input_shape = (classifier_timestep, population_size)
+            else:
+                classifier_avr_opt = False
+                input_shape = (classifier_timestep, population_size*amntVarDir)
         
         for i in range(nObj[0]):
-            classifierInit.append(NeuralNetwork(model_name, input_shape, population_size, amnt_hidden_nodes))
+            classifierInit.append(NeuralNetwork(model_name, input_shape, output_labels, amnt_hidden_nodes))
     classifier = classifierInit
     
     return json.dumps({"retorno": []})
@@ -294,6 +307,7 @@ def treino():
     global execult
     global treinou
     global population_size
+    global classifier_name
     global classifier_num_of_epochs
     global classifier_avr_opt
     global classifier_timestep
@@ -320,10 +334,14 @@ def treino():
                 nSolution = np.mean(nSolution, axis=2)
                 nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
 
-            nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+            if 'FIXED-1' in classifier_name:
+                # Old version, input as (population_size*amntVarDir)
+                nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+
             for step in nSolution:
                 # Saving nSolution history
                 history_nSolution.append(step)
+
             if len(history_nSolution) >= classifier_timestep:
                 for i in range(len(nObj)):
                     if len(nObj[i] > population_size):
@@ -334,18 +352,24 @@ def treino():
                     
                     pos = min(len(obj_now)-1, len(history_nSolution) - classifier_timestep)
                     while(pos >= 0):
-                        now = np.array(history_nSolution[-classifier_timestep-pos:])[:classifier_timestep]
-                        classifier[i].fit(np.array([now]), np.array([obj_now[-pos-1]]), classifier_num_of_epochs, 0, False)
+                        input_data = np.array(history_nSolution[-classifier_timestep-pos:])[:classifier_timestep]
+                        target_data = np.array([obj_now[-pos-1]])
+                        if 'FIXED-1' in classifier_name:
+                            input_data = np.array([input_data])
+                        elif 'FIXED-2' in classifier_name:
+                            # Reshape to (BATCH, TIMESTEP, FEATURE)
+                            input_data = np.reshape(input_data, (input_data.shape[1], input_data.shape[0], input_data.shape[2]))
+                            target_data = np.reshape(target_data, (target_data.shape[1], target_data.shape[0]))
+                        classifier[i].fit(input_data, target_data, classifier_num_of_epochs, 0, False)
                         pos -= 1
+            else:
+                print('Can\'t train, not enough nSolution history!')
         else:
             for i in range(len(nObj)):
                 classifier[i] = classifier[i].fit(nSolution, nObj[i])
 
     
     return json.dumps({"retorno": lista})
-
-
-
 
 """
 ######################################################### SALVAR #########################################################
@@ -411,13 +435,26 @@ def classifica():
             if classifier_avr_opt:
                 nSolution = np.mean(nSolution, axis=2)
                 nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1], 1))
-            nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+            
+            if 'FIXED-1' in classifier_name:
+                nSolution = np.reshape(nSolution, (nSolution.shape[0], nSolution.shape[1]*nSolution.shape[2]))
+
             for step in nSolution:
                 history_nSolution.append(step)
+            assert(len(history_nSolution) >= classifier_timestep)
+
             for i in range(len(nObj)):
-                # Classifier can be a keras Sequential model, in that case, could have a variable
-                # batch_size.
-                y_predict.append(classifier[i].predict(np.array([history_nSolution[-classifier_timestep:]]))[0])
+                input_data = np.array(history_nSolution[-classifier_timestep:])
+                if 'FIXED-1' in classifier_name:
+                    input_data = np.array([input_data])
+                elif 'FIXED-2' in classifier_name:
+                    input_data = np.reshape(input_data, (input_data.shape[1], input_data.shape[0], input_data.shape[2]))
+
+                predict_data = classifier[i].predict(input_data)
+                if 'FIXED-2' in classifier_name:
+                    predict_data = np.reshape(predict_data, (predict_data.shape[1], predict_data.shape[0]))
+
+                y_predict.append(predict_data[0])
         else:
             for i in range(len(nObj)):
                 y_predict.append(classifier[i].predict(nSolution))

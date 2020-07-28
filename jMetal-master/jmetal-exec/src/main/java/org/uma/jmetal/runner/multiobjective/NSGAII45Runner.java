@@ -59,35 +59,39 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 
 		long tNow = System.currentTimeMillis();
 		int numObj = 3;
-		int numExecution = 1;
+		int numExecution = 20;
 
 		String surrogateMethods[] = { "Batch", "Online" };
 		String problemTags[] = { "DTLZ", "WFG" };
 		// Limits number of version of problems to be simulated.
 		int startVersionProblems = 1;
 		int maxVersionsProblems = 3;
-
-//		case 0: "NO-SURROGATE";
-//		case 1: "SVM";
-//		case 2: "RAMDOMFOREST";
-//		case 3: "TREE";
-//		case 4: "LSTM-FIXED";
-//		case 5: "RNN-FIXED";
-//		case 6: "RANDOM";
 		
-		int nodesHiddenLayerNN = 92;
+//		// Quick Test variables:
+//		numExecution = 1;
+//		String surrogateMethods[] = { "Online" };
+//		String problemTags[] = { "DTLZ" };
+//		int startVersionProblems = 1;
+//		int maxVersionsProblems = 1;
+
+		// Nodes proportional to number of decision variables, in percentage.
+		String nodesHiddenLayerNN = "PROP-100";
 		int numOfEpochs = 10;
 		boolean avrOptimizationNN = false;
 		// If Neural Network, more information is integrated in surrogateName
-		String[] surrogateNNs = { "LSTM-FIXED" , "RNN-FIXED" };
+		String[] surrogateNNs = { "LSTM-FIXED-2" , "RNN-FIXED-2" };
 		String suffixNN = "";
-		suffixNN += 	"_amntNodesHidden=" + Integer.toString(nodesHiddenLayerNN) +
+		suffixNN += 	"_amntNodesHidden=" + nodesHiddenLayerNN +
 								"_amntEpochs=" + Integer.toString(numOfEpochs);
+		int[] timesteps = {1, 6, 11, 16, 22};
+		
+//		// QuickTest variable:
+//		int[] timesteps = {11};
 
 		ArrayList<String> surrogateNames = new ArrayList<String>();
 		for(String surNN : surrogateNNs) {
-			for(int avrOpt = 0; avrOpt <= 1; avrOpt++) {
-				for(int timestep = 22; timestep <= 22; timestep += 1) {
+			for(int avrOpt = 0; avrOpt <= 0; avrOpt++) {
+				for(int timestep : timesteps) {
 					String now = surNN + suffixNN + "_ts=" + Integer.toString(timestep);
 					if(avrOpt == 1)
 						now += "_avr";
@@ -96,6 +100,17 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 				}
 			}
 		}
+
+//		Surrogate options:
+//		"NO-SURROGATE";
+//		"SVM";
+//		"RAMDOMFOREST";
+//		"TREE";
+//		"LSTM-FIXED-1"; INPUT WHOLE POPULATION
+//		"LSTM-FIXED-2"; INPUT ONLY 1 SOLUTION
+//		"RNN-FIXED-1";
+//		"RNN-FIXED-2";
+//		"RANDOM";
 		
 		for(String surrogateName : surrogateNames)
 			for(String surrogateMethod : surrogateMethods)
