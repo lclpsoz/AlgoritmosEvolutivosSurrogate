@@ -62,10 +62,11 @@ class NeuralNetwork:
                     else:
                         print("!!!!!!NO MODEL!!!!!!")
                         exit(0)
-                    # self.model.add(Dropout(0.2))
+                    # self.model.add(Dropout(0.8))
                     self.model.add(Dense(units=output_labels))
-                    self.model.add(Activation('softmax'))
+                    # self.model.add(Activation('softmax'))
                     self.model.compile(loss='mean_squared_error', optimizer='adam')
+                    self.model.summary()
                 except Exception as e:
                     print("------------------| ERROR ON NeuralNetwork |------------------")
                     print(e)
@@ -268,7 +269,8 @@ def classificador():
         amnt_hidden_nodes = info['amntNodesHidden']
         if amnt_hidden_nodes.startswith('PROP'):
             multi = float(amnt_hidden_nodes.split('-')[1])/100
-            amnt_hidden_nodes = int(round(amntVarDir*multi))
+            EPS = 0.0001
+            amnt_hidden_nodes = int(amntVarDir*multi + EPS)
 
         classifier_num_of_epochs = info['amntEpochs']
         classifier_timestep = info['ts']
@@ -360,6 +362,10 @@ def treino():
                             # Reshape to (BATCH, TIMESTEP, FEATURE)
                             input_data = np.reshape(input_data, (input_data.shape[1], input_data.shape[0], input_data.shape[2]))
                             target_data = np.reshape(target_data, (target_data.shape[1], target_data.shape[0]))
+                        # print('INPUT')
+                        # print(input_data)
+                        # print('TARGET')
+                        # print(target_data)
                         classifier[i].fit(input_data, target_data, classifier_num_of_epochs, 0, False)
                         pos -= 1
             else:
@@ -450,7 +456,11 @@ def classifica():
                 elif 'FIXED-2' in classifier_name:
                     input_data = np.reshape(input_data, (input_data.shape[1], input_data.shape[0], input_data.shape[2]))
 
+                # print('INPUT')
+                # print(input_data)
                 predict_data = classifier[i].predict(input_data)
+                # print("PREDICT_DATA")
+                # print(predict_data)
                 if 'FIXED-2' in classifier_name:
                     predict_data = np.reshape(predict_data, (predict_data.shape[1], predict_data.shape[0]))
 
@@ -488,6 +498,8 @@ def classifica():
 
         evalSurrogate(obj_expected, obj_predict)
 
+    # print(np.array(y_predict).shape)
+    # print(np.array(y_predict))
     return json.dumps({"retorno": np.asarray(y_predict).tolist()})
 
 def archive_old_mse():
