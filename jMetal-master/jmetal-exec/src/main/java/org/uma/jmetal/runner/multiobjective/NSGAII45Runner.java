@@ -68,22 +68,19 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		int maxVersionsProblems = 3;
 		
 //		// Quick Test variables:
-//		numExecution = 1;
-//		String surrogateMethods[] = { "Online" };
+//		numExecution = 5;
+//		String surrogateMethods[] = { "Batch" };
 //		String problemTags[] = { "DTLZ" };
 //		int startVersionProblems = 1;
-//		int maxVersionsProblems = 1;
+//		int maxVersionsProblems = 3;
 
 		// Nodes proportional to number of decision variables, in percentage.
-		String nodesHiddenLayerNN = "PROP-100";
-		int numOfEpochs = 10;
+		String[] propsNodesHiddenLayerNN = { "PROP-50", "PROP-75", "PROP-150" };
 		boolean avrOptimizationNN = false;
 		// If Neural Network, more information is integrated in surrogateName
-		String[] surrogateNNs = { "LSTM-FIXED-2" , "RNN-FIXED-2" };
-		String suffixNN = "";
-		suffixNN += 	"_amntNodesHidden=" + nodesHiddenLayerNN +
-								"_amntEpochs=" + Integer.toString(numOfEpochs);
-		int[] timesteps = {1, 6, 11, 16, 22};
+		String[] surrogateNNs = { "LSTM-FIXED-2" };
+		int[] amntsOfEpochs = { 1 };
+		int[] timesteps = { 1, 6, 11, 15 };
 		
 //		// QuickTest variable:
 //		int[] timesteps = {11};
@@ -91,12 +88,21 @@ public class NSGAII45Runner extends AbstractAlgorithmRunner {
 		ArrayList<String> surrogateNames = new ArrayList<String>();
 		for(String surNN : surrogateNNs) {
 			for(int avrOpt = 0; avrOpt <= 0; avrOpt++) {
-				for(int timestep : timesteps) {
-					String now = surNN + suffixNN + "_ts=" + Integer.toString(timestep);
-					if(avrOpt == 1)
-						now += "_avr";
-					surrogateNames.add(now);
-					System.out.println(now);
+				for(int amntOfEpochs : amntsOfEpochs) {
+					for(int timestep : timesteps) {
+						for(String propNodesHiddenLayerNN : propsNodesHiddenLayerNN) {
+							if(amntOfEpochs == 0 && timestep > 1)
+								continue;
+							String now = surNN +
+									"_amntNodesHidden=" + propNodesHiddenLayerNN +
+									"_amntEpochs=" + Integer.toString(amntOfEpochs) +
+									"_ts=" + Integer.toString(timestep);
+							if(avrOpt == 1)
+								now += "_avr";
+							surrogateNames.add(now);
+							System.out.println(now);
+						}
+					}
 				}
 			}
 		}
